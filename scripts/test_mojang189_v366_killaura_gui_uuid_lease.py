@@ -188,7 +188,7 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         # never forge a CLEAR verdict, controller click, server damage or
         # loosen the original GuiScreen veto in production.
         self.assertIn(
-            'or args.wall_recovery or args.wall_lifecycle):',
+            'or args.unlocked_scoped_veto):',
             HARNESS)
         self.assertIn(
             '"custommc.acceptance.reportKillAuraLockedTarget"',
@@ -332,7 +332,7 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         # window. Never fake native ray/UUID, controller, hurt or server score.
         pvp = HARNESS.split("if args.pvp:", 1)[1].split(
             "for phase, proc in (", 1)[0]
-        self.assertEqual(1, pvp.count("v348_resume_confirmed_original_pause("))
+        self.assertEqual(2, pvp.count("v348_resume_confirmed_original_pause("))
         self.assertLess(pvp.index("TRIGGER_ENABLED, deadline,"),
                         pvp.index("v348_resume_confirmed_original_pause("))
         self.assertLess(pvp.index("v348_resume_confirmed_original_pause("),
@@ -344,7 +344,7 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
             "CUSTOMMC_189_V366_TRIGGERBOT_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
             pvp)
         self.assertIn(
-            "or args.wall_recovery or args.wall_lifecycle):",
+            "or args.unlocked_scoped_veto):",
             HARNESS)
         for real in (
             "wait_for(host, host_log, TRIGGER_CLICK, deadline,",
@@ -468,13 +468,69 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
             self.assertIn(evidence, wall)
         pretarget = HARNESS.split("def run(", 1)[1].split(
             'with target_log.open("wb")', 1)[0]
-        self.assertIn("or args.wall_recovery or args.wall_lifecycle):",
+        self.assertIn("or args.unlocked_scoped_veto):",
                       pretarget)
         self.assertIn("host_window = identify_original_host_window_before_target(host)",
                       pretarget)
         veto = BRIDGE.split(
             "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1
         )[1].split("public static synchronized void autoClick(", 1)[0]
+        self.assertIn("Minecraft189NativeGuiCombatVeto.blocks(minecraft)", veto)
+        self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
+        self.assertIn("return true;", veto)
+
+    def test_r12_unlocked_owners_require_real_gui_and_original_negative_positive_proof(self):
+        # Genuine original M424 remote B owner veto did not appear despite
+        # natural Aura enable. A source-observed axp may be physically closed
+        # on CIHost, never on an arbitrary target window. The negative
+        # mismatched UUID veto and the fresh accepted UUID A remain real.
+        source = BRIDGE.split("private static void reportAcceptanceScreen()", 1)[0]
+        for prop in (
+            '"custommc.acceptance.requireRemotePairAuraOwnerVeto"',
+            '"custommc.acceptance.requireUnlockedAuraOwnerVeto"',
+        ):
+            self.assertIn(prop, source)
+        harness = HARNESS.split("def run(", 1)[1].split(
+            "    except BaseException:", 1)[0]
+        pretarget = harness.split('with target_log.open("wb")', 1)[0]
+        self.assertIn("or args.unlocked_remote_owner_veto", pretarget)
+        self.assertIn("or args.unlocked_scoped_veto):", pretarget)
+        self.assertIn("identify_original_host_window_before_target(host)", pretarget)
+        pvp = harness.split("if args.pvp:", 1)[1].split(
+            "for phase, proc in (", 1)[0]
+        self.assertEqual(2, pvp.count("v348_resume_confirmed_original_pause("))
+        owner = pvp.split(
+            "if args.unlocked_remote_owner_veto or args.unlocked_scoped_veto:", 1
+        )[1].split("if args.unlocked_remote_owner_veto:", 1)[0]
+        self.assertIn("v348_resume_confirmed_original_pause(", owner)
+        self.assertIn(
+            'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
+            owner)
+        self.assertIn(
+            "CUSTOMMC_189_V366_UNLOCKED_OWNER_PREVETO_ORIGINAL_GUI_CLEAR_PASS=YES",
+            owner)
+        self.assertLess(pvp.index("AURA_ENABLED, deadline,"),
+                        pvp.index("v348_resume_confirmed_original_pause(",
+                                  pvp.index("if args.unlocked_remote_owner_veto or args.unlocked_scoped_veto:")))
+        for real in (
+            "REMOTE_PAIR_SCOPE_VETO, deadline,",
+            "REMOTE_PAIR_SCOPE_FRESH, deadline,",
+            "UNLOCKED_SCOPE_VETO, deadline,",
+            "UNLOCKED_SCOPE_FRESH, deadline,",
+            '"scoreboard players test CITarget taken 0 0"',
+            '"scoreboard players test CITargetB taken 0 0"',
+            '"scoreboard players test CITarget taken 1 999999"',
+            "CUSTOMMC_189_UNLOCKED_REMOTE_B_SERVER_DAMAGE_STILL_ZERO_PASS=YES",
+        ):
+            self.assertIn(real, pvp)
+        recovery = HARNESS.split("def v348_resume_confirmed_original_pause(", 1)[1].split(
+            "def restore_real_attacker_focus(", 1)[0]
+        self.assertIn('if screen != "axp":', recovery)
+        self.assertIn('send_real_host_key(host, window, "Escape")', recovery)
+        self.assertIn('b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)"', recovery)
+        veto = BRIDGE.split(
+            "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1)[1].split(
+            "public static synchronized void autoClick(", 1)[0]
         self.assertIn("Minecraft189NativeGuiCombatVeto.blocks(minecraft)", veto)
         self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
         self.assertIn("return true;", veto)
