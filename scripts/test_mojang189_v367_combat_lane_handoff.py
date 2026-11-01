@@ -140,9 +140,14 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
         self.assertLess(
             native.index("minecraft.customMcRightClickMouse();"),
             native.index("host.recordAutoBlockStart(useToken);"))
-        self.assertIn("swordBlock.customMcIsUsingItem()\n"
-                      "                                    && host.mayDispatchScheduledCombatLane()",
-                      native)
+        self.assertIn("if (swordBlock.customMcIsUsingItem()) {", native)
+        self.assertIn("if (host.mayDispatchScheduledCombatLane())", native)
+        self.assertLess(
+            native.index("if (swordBlock.customMcIsUsingItem()) {"),
+            native.index("if (host.mayDispatchScheduledCombatLane())"))
+        self.assertLess(
+            native.index("if (host.mayDispatchScheduledCombatLane())"),
+            native.index("host.recordAutoBlockStart(useToken);"))
         self.assertIn(
             "finally {\n                            // This exact uncommitted native use lease",
             BRIDGE)
