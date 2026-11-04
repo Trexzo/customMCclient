@@ -50,6 +50,7 @@ public final class ModuleDetailPageContent
     private final ClickGuiContentScrollState scroll =
             new ClickGuiContentScrollState();
     private final UiContentScrollDrag railDrag = new UiContentScrollDrag();
+    private final UiNumericSettingScrub numericScrub = new UiNumericSettingScrub();
     // A detail page is contextual: different module settings must never
     // inherit the previous module's scrolled-to-middle position.
     private String displayedModuleId;
@@ -255,7 +256,16 @@ public final class ModuleDetailPageContent
         // S49: use the same S48 native rail drag in contextual details,
         // before keybind focus, back navigation and setting editing.
         if (railDrag.pointer(event, context.bounds(), totalHeight, scroll)) {
+            if (event.action() == UiPointerAction.PRESS) {
+                numericScrub.cancel();
+            }
             return true;
+        }
+        if (numericScrub.pointer(event)) {
+            return true;
+        }
+        if (event.action() == UiPointerAction.PRESS) {
+            numericScrub.cancel();
         }
         final float scrollOffset =
                 scroll.offset(totalHeight, context.bounds().height());
@@ -300,16 +310,15 @@ public final class ModuleDetailPageContent
              index++) {
             final SettingEntry entry =
                     visible.get(index);
-            if (!rowBounds(
-                    context.bounds(),
-                    index,
-                    scrollOffset)
-                    .contains(
-                            event.x(),
-                            event.y())) {
+            final UiBounds row = rowBounds(
+                    context.bounds(), index, scrollOffset);
+            if (!row.contains(event.x(), event.y())) {
                 continue;
             }
-
+            if (numericScrub.begin(row, entry.setting,
+                    entry.descriptor, event)) {
+                return true;
+            }
             return editor.pointer(
                     context,
                     entry.setting,
@@ -348,6 +357,7 @@ public final class ModuleDetailPageContent
             displayedModuleId = moduleId;
             scroll.reset();
             railDrag.cancel();
+            numericScrub.cancel();
         }
     }
 
