@@ -64,6 +64,9 @@ public final class Minecraft189HostRuntime
     // One accepted scheduler callback may cross into vanilla mouse/controller
     // only while its *exact* module lane and lifecycle remain unchanged.
     private Minecraft189CombatLaneAdmission pendingCombatLane;
+    // A native ray/GUI/ItemStack getter can reenter after HitSelect's
+    // original UUID/hurt admission but before the real controller call.
+    private Minecraft189HitSelectPolicyAdmission pendingHitSelectPolicy;
     private final Minecraft189CriticalsEvidence criticalsEvidence =
             new Minecraft189CriticalsEvidence();
     // Only one exact native player, module policy and scheduler callback
@@ -2582,6 +2585,7 @@ public final class Minecraft189HostRuntime
         // No native controller authorization survives an action callback,
         // including an early return, original click exception or GUI veto.
         pendingCombatLane = null;
+        pendingHitSelectPolicy = null;
         autoClickerControllerLease.clear();
         combatCycle.leave(token);
     }
@@ -3431,6 +3435,7 @@ public final class Minecraft189HostRuntime
         requireOpen();
         ++triggerDispatchAdmissionSerial;
         pendingCombatLane = null;
+        pendingHitSelectPolicy = null;
         criticalsNativeAdmissionSerial = -1L;
         criticalsNativePlayer = null;
         triggerDispatchLease.clear();
@@ -3487,6 +3492,19 @@ public final class Minecraft189HostRuntime
                 clicker.nativeOwnerEpoch());
     }
 
+    /** Read only: no original ray, World, hurt or recovery state transition.
+     * Explicitly record disabled state too: an OFF->ON->OFF inside a later
+     * getter must not turn an admitted unscoped click into a newer policy.
+     */
+    private Minecraft189HitSelectPolicyAdmission currentHitSelectPolicy() {
+        final Minecraft189HitSelectModule select = featureCatalog.hitSelect();
+        return Minecraft189HitSelectPolicyAdmission.capture(
+                select.active(), select.nativeOwnerEpoch(),
+                select.requireObservedRecoverySetting().get(),
+                select.minTargetHurtTicksSetting().get(),
+                select.maxTargetHurtTicksSetting().get());
+    }
+
     private boolean shouldAutoClickInternal(final boolean crosshairPlayerHit,
             final int crosshairPlayerIndex, final double[] nativeHitbox,
             final boolean requireOriginalTargetUuid) {
@@ -3495,6 +3513,7 @@ public final class Minecraft189HostRuntime
         // An older outer callback cannot revive its stale prior admission.
         final long admissionSerial = ++triggerDispatchAdmissionSerial;
         pendingCombatLane = null;
+        pendingHitSelectPolicy = null;
         criticalsNativeAdmissionSerial = -1L;
         criticalsNativePlayer = null;
         triggerDispatchLease.clear();
@@ -3892,6 +3911,15 @@ public final class Minecraft189HostRuntime
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
         if (!admittedLane.matches(currentCombatLaneAdmission()))
             return false;
+        // Snapshot HitSelect AFTER its original World UUID/hurt permission
+        // was validated by this scheduler, never consume READY here.
+        final Minecraft189HitSelectPolicyAdmission hitSelectPolicy =
+                currentHitSelectPolicy();
+        if (admissionSerial != triggerDispatchAdmissionSerial
+                || !admittedLane.matches(currentCombatLaneAdmission())
+                || !hitSelectPolicy.matches(currentHitSelectPolicy()))
+            return false;
+        pendingHitSelectPolicy = hitSelectPolicy;
         pendingCombatLane = admittedLane;
         return true;
     }
@@ -3908,6 +3936,19 @@ public final class Minecraft189HostRuntime
         return pendingCombatLane != null
                 && pendingCombatLane.matches(currentCombatLaneAdmission())
                 && !clickGuiRuntime.coreRuntime().model().snapshot().open();
+    }
+
+    /**
+     * V367 R5: final read-only HitSelect lifetime/policy guard. The real
+     * source UUID and hurt window have *already* been rechecked by
+     * permitsHitSelectAtNativeDispatch(). No new native source getter,
+     * recovery-state transition, attack or synthetic click occurs here.
+     */
+    boolean mayRetainOriginalHitSelectAdmission() {
+        requireOpen();
+        return mayDispatchScheduledCombatLane()
+                && pendingHitSelectPolicy != null
+                && pendingHitSelectPolicy.matches(currentHitSelectPolicy());
     }
 
     /**
@@ -4185,6 +4226,7 @@ public final class Minecraft189HostRuntime
         // release a newer generation created by another callback.
         combatCycle.revoke();
         pendingCombatLane = null;
+        pendingHitSelectPolicy = null;
         autoClickerControllerLease.clear();
         inputState.clear();
         frameRateTracker.clear();
