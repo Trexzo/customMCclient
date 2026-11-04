@@ -28,6 +28,8 @@ public final class ClickGuiInputController
     private final UiFocusManager focusManager;
     private final ClickGuiNavigator navigator;
     private final UiFocusManager.Registration searchRegistration;
+    private String capturedPageId;
+    private long capturedPointerEpoch;
 
     public ClickGuiInputController(
             final ClickGuiModel model,
@@ -76,8 +78,7 @@ public final class ClickGuiInputController
                     @Override
                     public boolean selectPage(
                             final String pageId) {
-                        return ClickGuiInputController.this.model
-                                .select(pageId);
+                        return ClickGuiInputController.this.selectPage(pageId);
                     }
                 };
         this.searchRegistration =
@@ -91,6 +92,11 @@ public final class ClickGuiInputController
         Objects.requireNonNull(event, "event");
         Objects.requireNonNull(viewport, "viewport");
 
+        reconcilePointerCapture();
+        // A fresh press starts a new gesture, never continuing a stale one.
+        if (event.action() == UiPointerAction.PRESS) {
+            cancelCapturedPointer();
+        }
         final ClickGuiSnapshot snapshot =
                 model.snapshot();
         if (!snapshot.open()) {
@@ -185,6 +191,7 @@ public final class ClickGuiInputController
             final UiViewport viewport) {
         Objects.requireNonNull(event, "event");
         Objects.requireNonNull(viewport, "viewport");
+        reconcilePointerCapture();
 
         final ClickGuiSnapshot snapshot =
                 model.snapshot();
@@ -229,6 +236,7 @@ public final class ClickGuiInputController
 
     public boolean key(final UiKeyEvent event) {
         Objects.requireNonNull(event, "event");
+        reconcilePointerCapture();
 
         if (!model.snapshot().open()) {
             return false;
@@ -267,9 +275,10 @@ public final class ClickGuiInputController
             // Escape closes ClickGUI. Focused editors own Escape above.
             if (ClickGuiRuntime.MODULE_DETAIL_PAGE_ID.equals(
                     model.snapshot().selectedPageId())) {
-                return model.select(ClickGuiRuntime.MODULES_PAGE_ID);
+                return selectPage(ClickGuiRuntime.MODULES_PAGE_ID);
             }
             model.close();
+            reconcilePointerCapture();
             return true;
         }
 
@@ -278,6 +287,7 @@ public final class ClickGuiInputController
 
     @Override
     public void close() {
+        cancelCapturedPointer();
         focusManager.clearFocus();
         searchRegistration.close();
     }
@@ -335,7 +345,7 @@ public final class ClickGuiInputController
                     ? pages.size() - 1
                     : (current + pages.size() - 1) % pages.size();
         }
-        return model.select(pages.get(next).id());
+        return selectPage(pages.get(next).id());
     }
 
     private boolean dispatchContentPointer(
@@ -356,7 +366,7 @@ public final class ClickGuiInputController
             return false;
         }
 
-        return content.pointer(
+        final boolean handled = content.pointer(
                 new ClickGuiContentInputContext(
                         snapshot,
                         selected,
@@ -365,6 +375,14 @@ public final class ClickGuiInputController
                         navigator,
                         viewport),
                 event);
+        if (content.capturesPointerDrag()) {
+            capturedPageId = selected.id();
+            capturedPointerEpoch = model.pointerContextEpoch();
+            reconcilePointerCapture();
+        } else if (selected.id().equals(capturedPageId)) {
+            capturedPageId = null;
+        }
+        return handled;
     }
 
     private boolean dispatchContentScroll(
@@ -412,13 +430,37 @@ public final class ClickGuiInputController
             if (pointerY >= rowY
                     && pointerY
                     < rowY + ClickGuiMetrics.PAGE_HEIGHT) {
-                model.select(page.id());
+                selectPage(page.id());
                 return;
             }
 
             rowY += ClickGuiMetrics.PAGE_HEIGHT
                     + ClickGuiMetrics.PAGE_GAP;
         }
+    }
+
+    private boolean selectPage(final String pageId) {
+        final boolean selected = model.select(pageId);
+        reconcilePointerCapture();
+        return selected;
+    }
+
+    private void reconcilePointerCapture() {
+        if (capturedPageId == null) return;
+        final ClickGuiSnapshot snapshot = model.snapshot();
+        if (!snapshot.open()
+                || !capturedPageId.equals(snapshot.selectedPageId())
+                || capturedPointerEpoch != model.pointerContextEpoch()) {
+            cancelCapturedPointer();
+        }
+    }
+
+    private void cancelCapturedPointer() {
+        if (capturedPageId == null) return;
+        final String formerPage = capturedPageId;
+        capturedPageId = null;
+        final ClickGuiPageContent content = contentRegistry.find(formerPage);
+        if (content != null) content.cancelPointerDrag();
     }
 
     private static ClickGuiPage selectedPage(

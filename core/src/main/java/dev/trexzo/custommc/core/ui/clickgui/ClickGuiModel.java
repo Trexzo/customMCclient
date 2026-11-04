@@ -36,6 +36,9 @@ public final class ClickGuiModel {
     private String searchQuery = "";
     private float navigationScroll;
     private boolean open;
+    // Changes whenever the owner page or GUI-open session changes.
+    // A drag begun in a previous context must never be resurrected.
+    private long pointerContextEpoch;
 
     public synchronized Registration register(
             final ClickGuiPage page) {
@@ -61,15 +64,26 @@ public final class ClickGuiModel {
     }
 
     public synchronized void open() {
-        open = true;
+        if (!open) {
+            open = true;
+            pointerContextEpoch++;
+        }
     }
 
     public synchronized void close() {
-        open = false;
+        if (open) {
+            open = false;
+            pointerContextEpoch++;
+        }
     }
 
     public synchronized void toggle() {
         open = !open;
+        pointerContextEpoch++;
+    }
+
+    public synchronized long pointerContextEpoch() {
+        return pointerContextEpoch;
     }
 
     public synchronized boolean select(
@@ -78,7 +92,10 @@ public final class ClickGuiModel {
         if (!pages.containsKey(pageId)) {
             return false;
         }
-        selectedPageId = pageId;
+        if (!pageId.equals(selectedPageId)) {
+            selectedPageId = pageId;
+            pointerContextEpoch++;
+        }
         selectionExplicit = true;
         return true;
     }
@@ -136,10 +153,12 @@ public final class ClickGuiModel {
     }
 
     private void selectFirstAvailable() {
-        selectedPageId =
-                orderedPages.isEmpty()
-                        ? null
-                        : orderedPages.get(0).id();
+        final String next = orderedPages.isEmpty()
+                ? null : orderedPages.get(0).id();
+        if (!Objects.equals(selectedPageId, next)) {
+            selectedPageId = next;
+            pointerContextEpoch++;
+        }
     }
 
     private void rebuildPages() {

@@ -163,6 +163,12 @@ public final class SettingListPageContent
     }
 
     @Override
+    public void cancelPointerDrag() {
+        railDrag.cancel();
+        numericScrub.cancel();
+    }
+
+    @Override
     public boolean capturesPointerDrag() {
         return railDrag.dragging() || numericScrub.dragging();
     }

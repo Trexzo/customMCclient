@@ -30,6 +30,13 @@ public interface ClickGuiPageContent {
         return false;
     }
 
+    /**
+     * Cancel only transient pointer capture (no setting or module rollback).
+     * Used when a different page or GUI session supersedes the drag owner.
+     */
+    default void cancelPointerDrag() {
+    }
+
     default boolean scroll(
             final ClickGuiContentInputContext context,
             final UiScrollEvent event) {
