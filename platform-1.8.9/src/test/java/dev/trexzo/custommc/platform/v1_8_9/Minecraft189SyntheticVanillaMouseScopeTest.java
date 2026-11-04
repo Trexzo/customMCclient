@@ -20,6 +20,7 @@ final class Minecraft189SyntheticVanillaMouseScopeTest {
         try (Minecraft189SyntheticVanillaMouseScope.Scope ignored =
                 Minecraft189SyntheticVanillaMouseScope.enter()) {
             assertTrue(Minecraft189SyntheticVanillaMouseScope.active());
+            assertTrue(ignored.stillCurrent());
         }
         assertFalse(Minecraft189SyntheticVanillaMouseScope.active());
     }
@@ -49,6 +50,7 @@ final class Minecraft189SyntheticVanillaMouseScopeTest {
             try (Minecraft189SyntheticVanillaMouseScope.Scope ignored =
                     Minecraft189SyntheticVanillaMouseScope.enter()) {
                 assertTrue(Minecraft189SyntheticVanillaMouseScope.active());
+                assertTrue(ignored.stillCurrent());
                 throw new IllegalStateException("mapped entity getter failed");
             }
         });
@@ -76,6 +78,7 @@ final class Minecraft189SyntheticVanillaMouseScopeTest {
                 new java.util.concurrent.atomic.AtomicReference<Throwable>();
         try (Minecraft189SyntheticVanillaMouseScope.Scope ignored =
                 Minecraft189SyntheticVanillaMouseScope.enter()) {
+            assertTrue(ignored.stillCurrent());
             final Thread observer = new Thread(() -> {
                 try {
                     assertFalse(Minecraft189SyntheticVanillaMouseScope.active(),
@@ -83,6 +86,7 @@ final class Minecraft189SyntheticVanillaMouseScopeTest {
                     try (Minecraft189SyntheticVanillaMouseScope.Scope local =
                             Minecraft189SyntheticVanillaMouseScope.enter()) {
                         assertTrue(Minecraft189SyntheticVanillaMouseScope.active());
+                        assertTrue(local.stillCurrent());
                     }
                     assertFalse(Minecraft189SyntheticVanillaMouseScope.active());
                 } catch (Throwable testFailure) {
