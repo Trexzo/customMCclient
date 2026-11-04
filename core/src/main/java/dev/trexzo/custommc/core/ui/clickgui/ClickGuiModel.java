@@ -36,8 +36,9 @@ public final class ClickGuiModel {
     private String searchQuery = "";
     private float navigationScroll;
     private boolean open;
-    // Changes whenever the owner page or GUI-open session changes.
-    // A drag begun in a previous context must never be resurrected.
+    // Changes when the owner page, GUI-open session, or displayed search
+    // projection changes. A drag begun in a previous context cannot be
+    // resurrected or modify a row hidden by a fresh search.
     private long pointerContextEpoch;
 
     public synchronized Registration register(
@@ -102,10 +103,12 @@ public final class ClickGuiModel {
 
     public synchronized void setSearchQuery(
             final String searchQuery) {
-        this.searchQuery =
-                Objects.requireNonNull(
-                        searchQuery,
-                        "searchQuery");
+        final String next = Objects.requireNonNull(
+                searchQuery, "searchQuery");
+        if (!this.searchQuery.equals(next)) {
+            this.searchQuery = next;
+            pointerContextEpoch++;
+        }
     }
 
     public synchronized void setNavigationScroll(

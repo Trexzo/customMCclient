@@ -644,6 +644,79 @@ final class ClickGuiInputControllerTest {
         assertFalse(page.capturesPointerDrag());
     }
 
+
+    @Test
+    void searchProjectionChangeCancelsCapturedScrubWithoutChangingValue() {
+        final ClickGuiModel model = new ClickGuiModel();
+        model.register(new ClickGuiPage("settings", "Settings", 0));
+        model.open();
+        final SettingRegistry settings = new SettingRegistry();
+        final Setting<Integer> opacity = new Setting<Integer>(
+                "visual.opacity", 40,
+                x -> x != null && x >= 0 && x <= 100,
+                SettingCodecs.INTEGER);
+        settings.register(opacity);
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        presentations.register(new SettingDescriptor(
+                "visual.opacity", "Opacity", SettingValueKind.INTEGER,
+                0, new SettingNumericSpec(0, 100, 5)));
+        final SettingListPageContent page =
+                new SettingListPageContent(settings, presentations);
+        final ClickGuiContentRegistry contents =
+                new ClickGuiContentRegistry();
+        contents.register("settings", page);
+        final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+        final ClickGuiLayout layout =
+                new ClickGuiLayoutEngine().layout(viewport);
+        final float x = layout.content().x()
+                + layout.content().width() - 155;
+        final float y = layout.content().y() + 68;
+        final float outside = layout.content().x()
+                + layout.content().width() + 100;
+        final UiPointerEvent outsideMove = new UiPointerEvent(
+                outside, y, UiPointerButton.LEFT, UiPointerAction.MOVE);
+        final long originalEpoch = model.pointerContextEpoch();
+        try (ClickGuiInputController input = new ClickGuiInputController(
+                model, contents, new UiFocusManager())) {
+            assertTrue(input.pointer(press(x, y), viewport));
+            assertTrue(page.capturesPointerDrag());
+            final Integer originalValue = opacity.get();
+
+            model.setSearchQuery("no matching settings");
+            assertTrue(model.pointerContextEpoch() > originalEpoch);
+            assertFalse(input.pointer(outsideMove, viewport));
+            assertFalse(page.capturesPointerDrag());
+            assertEquals(originalValue, opacity.get());
+
+            // A no-op query setter must not invalidate a valid drag.
+            model.setSearchQuery("");
+            assertTrue(input.pointer(press(x, y), viewport));
+            assertTrue(page.capturesPointerDrag());
+            final long currentEpoch = model.pointerContextEpoch();
+            model.setSearchQuery("");
+            assertEquals(currentEpoch, model.pointerContextEpoch());
+            assertTrue(input.pointer(outsideMove, viewport));
+            assertEquals(Integer.valueOf(100), opacity.get());
+            assertTrue(input.pointer(new UiPointerEvent(outside, y,
+                    UiPointerButton.LEFT, UiPointerAction.RELEASE), viewport));
+            assertFalse(page.capturesPointerDrag());
+
+            // Ctrl+F while dragging transfers ownership to search; the
+            // held numeric scrub must not survive that focus transition.
+            assertTrue(input.pointer(press(x, y), viewport));
+            assertTrue(page.capturesPointerDrag());
+            assertTrue(input.key(new UiKeyEvent(
+                    new UiKey("legacy-key-33"), UiKeyAction.PRESS,
+                    '\0', true, false, false)));
+            assertFalse(page.capturesPointerDrag());
+            assertTrue(input.key(character('q')));
+            assertEquals("q", model.snapshot().searchQuery());
+            assertFalse(input.pointer(outsideMove, viewport));
+            assertEquals(Integer.valueOf(100), opacity.get());
+        }
+    }
+
     private static ClickGuiModel model() {
         final ClickGuiModel model =
                 new ClickGuiModel();
