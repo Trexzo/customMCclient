@@ -98,9 +98,8 @@ final class UiSettingRowVisualsTest {
         final List<UiDrawCommand> numericCommands =
                 UiSettingRowVisuals.compose(STANDARD, steps, numeric,
                         "3", false, UiThemes.graphite());
-        assertTrue(hasText(numericCommands, "LEFT +  /  RIGHT -"));
+        assertTrue(hasText(numericCommands, "DRAG BAR  /  LEFT +  /  RIGHT -"));
         assertTrue(hasText(numericCommands, "3"));
-        assertFalse(hasText(numericCommands, "DRAG"));
 
         final Setting<String> text = new Setting<String>(
                 "render.label", "abc", v -> true, SettingCodecs.STRING);
