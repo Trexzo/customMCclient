@@ -74,18 +74,21 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
             dispatch)
         self.assertEqual(2, dispatch.count(
             "if (!host.mayDispatchScheduledCombatLane()\n"
-            "                                        || !host.mayRetainOriginalCriticalsAdmission())\n"
+            "                                        || !host.mayRetainOriginalCriticalsAdmission()\n"
+            "                                        || !host.mayRetainOriginalHitSelectAdmission())\n"
             "                                    return;\n"
             "                                minecraft.customMcAttackCrosshairEntity();"
         ) + dispatch.count(
             "if (!host.mayDispatchScheduledCombatLane()\n"
-            "                                            || !host.mayRetainOriginalCriticalsAdmission())\n"
+            "                                            || !host.mayRetainOriginalCriticalsAdmission()\n"
+            "                                            || !host.mayRetainOriginalHitSelectAdmission())\n"
             "                                        return;\n"
             "                                    minecraft.customMcAttackCrosshairEntity();"
         ))
         self.assertIn(
             "if (!host.mayDispatchScheduledCombatLane()\n"
-            "                                        || !host.mayRetainOriginalCriticalsAdmission())\n"
+            "                                        || !host.mayRetainOriginalCriticalsAdmission()\n"
+            "                                        || !host.mayRetainOriginalHitSelectAdmission())\n"
             "                                    return;\n"
             "                                minecraft.customMcClickMouse();",
             dispatch)
@@ -153,6 +156,79 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
                                 "minecraft.customMcAttackCrosshairEntity();",
                                 "minecraft.customMcClickMouse();")
                                 if section.find(name) >= 0)))
+
+    def test_r5_hitselect_lifecycle_and_policy_fails_closed_at_controller(self):
+        # Original UUID/hurt selection and the genuine controller argument
+        # remain separately authoritative. This retains only the same module
+        # policy after native ray, item and GUI callback reentry.
+        policy = (SOURCE / "Minecraft189HitSelectPolicyAdmission.java").read_text(
+            encoding="utf-8")
+        for requirement in (
+            "enabled == current.enabled",
+            "ownerEpoch == current.ownerEpoch",
+            "requireRecovery == current.requireRecovery",
+            "minimum == current.minimum",
+            "maximum == current.maximum",
+        ):
+            self.assertIn(requirement, policy)
+        for forbidden in (
+            "customMc", "noteOriginalNativeControllerAttack",
+            "recoveryByUuid.put", "sendPacket",
+        ):
+            self.assertNotIn(forbidden, policy)
+        snapshot = HOST.split(
+            "private Minecraft189HitSelectPolicyAdmission currentHitSelectPolicy()", 1
+        )[1].split("private boolean shouldAutoClickInternal(", 1)[0]
+        for term in (
+            "select.active(), select.nativeOwnerEpoch()",
+            "select.requireObservedRecoverySetting().get()",
+            "select.minTargetHurtTicksSetting().get()",
+            "select.maxTargetHurtTicksSetting().get()",
+        ):
+            self.assertIn(term, snapshot)
+        scheduler = HOST.split("private boolean shouldAutoClickInternal(", 1)[1].split(
+            "boolean mayDispatchScheduledCombatLane()", 1)[0]
+        self.assertIn("pendingHitSelectPolicy = null;", scheduler)
+        self.assertIn("pendingHitSelectPolicy = hitSelectPolicy;", scheduler)
+        self.assertLess(
+            scheduler.index("hitSelect.permitsOriginalOwner("),
+            scheduler.index("pendingHitSelectPolicy = hitSelectPolicy;"))
+        self.assertLess(
+            scheduler.index("pendingHitSelectPolicy = hitSelectPolicy;"),
+            scheduler.index("pendingCombatLane = admittedLane;"))
+        guard = HOST.split("boolean mayRetainOriginalHitSelectAdmission() {", 1)[1].split(
+            "\n    }", 1)[0]
+        self.assertIn("mayDispatchScheduledCombatLane()", guard)
+        self.assertIn("pendingHitSelectPolicy != null", guard)
+        self.assertIn("pendingHitSelectPolicy.matches(currentHitSelectPolicy())", guard)
+        for forbidden in ("customMc", "noteOriginal", "observeOriginalOwner",
+                          "shouldClick", "permitsOriginalOwner"):
+            self.assertNotIn(forbidden, guard)
+        dispatch = BRIDGE.split(
+            "if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {",
+            1)[1].split("} finally {\n                // Every early return", 1)[0]
+        self.assertEqual(3, dispatch.count("host.mayRetainOriginalHitSelectAdmission()"))
+        self.assertEqual(3, dispatch.count("permitsHitSelectAtNativeDispatch("))
+        self.assertEqual(3, dispatch.count("host.mayDispatchOriginalCriticals()"))
+        self.assertEqual(3, dispatch.count("host.mayRetainOriginalCriticalsAdmission()"))
+        for section in dispatch.split("host.mayDispatchOriginalCriticals()")[1:]:
+            self.assertLess(section.index("permitsHitSelectAtNativeDispatch("),
+                            section.index("mayRetainOriginalHitSelectAdmission()"))
+            self.assertLess(section.index("mayRetainOriginalHitSelectAdmission()"),
+                            min(section.index(name) for name in (
+                                "minecraft.customMcAttackCrosshairEntity();",
+                                "minecraft.customMcClickMouse();") if name in section))
+        for shutdown in (
+            HOST.split("void suspendSyntheticCombatForOriginalGui() {", 1)[1].split(
+                "\n    }", 1)[0],
+            HOST.split("void leaveSyntheticCombatCycle(final long token) {", 1)[1].split(
+                "\n    }", 1)[0],
+            HOST.split("public void close() {", 1)[1],
+        ):
+            self.assertIn("pendingHitSelectPolicy = null;", shutdown)
+        self.assertIn(
+            "host.featureCatalog().hitSelect().noteOriginalNativeControllerAttack(",
+            BRIDGE)
 
     def test_r3_post_melee_autoblock_preserves_standalone_source_api(self):
         # Existing sword-source JUnit fixtures deliberately call the host
