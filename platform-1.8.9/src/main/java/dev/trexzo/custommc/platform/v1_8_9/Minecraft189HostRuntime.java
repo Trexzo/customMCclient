@@ -3543,6 +3543,14 @@ public final class Minecraft189HostRuntime
                     worldEntityKindState.snapshot(),
                     worldEntityCombatState.snapshot());
         }
+        // V367 R6: this is the ORIGINAL HitSelect policy at scheduler
+        // intake, AFTER the legitimate source/hurt recovery observation
+        // (which may intentionally advance its epoch), but BEFORE any later
+        // World getter, native UUID read or HitSelect permitsOriginalOwner.
+        // A callback that toggles or edits HitSelect cannot make the
+        // later capture adopt its new state and borrow old click credit.
+        final Minecraft189HitSelectPolicyAdmission intakeHitSelectPolicy =
+                currentHitSelectPolicy();
         // Exactly one Combat module can own an automatic attack callback.
         // Preserve Aura > TriggerBot > legacy Auto Clicker priority, but
         // never recompute the owner after a reentrant original World getter.
@@ -3911,15 +3919,14 @@ public final class Minecraft189HostRuntime
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
         if (!admittedLane.matches(currentCombatLaneAdmission()))
             return false;
-        // Snapshot HitSelect AFTER its original World UUID/hurt permission
-        // was validated by this scheduler, never consume READY here.
-        final Minecraft189HitSelectPolicyAdmission hitSelectPolicy =
-                currentHitSelectPolicy();
+        // V367 R6: do NOT adopt the latest policy here; it could have
+        // changed inside native World, HitSelect, Criticals or UUID getters.
+        // The intake policy must still match at the scheduler's LAST gate.
         if (admissionSerial != triggerDispatchAdmissionSerial
                 || !admittedLane.matches(currentCombatLaneAdmission())
-                || !hitSelectPolicy.matches(currentHitSelectPolicy()))
+                || !intakeHitSelectPolicy.matches(currentHitSelectPolicy()))
             return false;
-        pendingHitSelectPolicy = hitSelectPolicy;
+        pendingHitSelectPolicy = intakeHitSelectPolicy;
         pendingCombatLane = admittedLane;
         return true;
     }
