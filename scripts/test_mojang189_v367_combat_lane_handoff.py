@@ -85,13 +85,23 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
             "                                        return;\n"
             "                                    minecraft.customMcAttackCrosshairEntity();"
         ))
-        self.assertIn(
+        # R8 introduces an exception-safe scope between this exact final
+        # original gate and vanilla clickMouse; the late scope does not
+        # relax any guard or add a second attack.
+        vanilla_gate = (
             "if (!host.mayDispatchScheduledCombatLane()\n"
             "                                        || !host.mayRetainOriginalCriticalsAdmission()\n"
             "                                        || !host.mayRetainOriginalHitSelectAdmission())\n"
-            "                                    return;\n"
-            "                                minecraft.customMcClickMouse();",
-            dispatch)
+            "                                    return;"
+        )
+        self.assertIn(vanilla_gate, dispatch)
+        self.assertEqual(1, dispatch.count("minecraft.customMcClickMouse();"))
+        self.assertLess(
+            dispatch.index(vanilla_gate),
+            dispatch.index("Minecraft189SyntheticVanillaMouseScope.enter()"))
+        self.assertLess(
+            dispatch.index("Minecraft189SyntheticVanillaMouseScope.enter()"),
+            dispatch.index("minecraft.customMcClickMouse();"))
         for requirement in (
             "vetoOriginalScreenBeforeNativeCombat(",
             "permitsHitSelectAtNativeDispatch(",
@@ -332,11 +342,15 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
             "CURRENT.set(prior);",
         ):
             self.assertIn(required, scope)
+        # Check executable source, not the explanatory Javadoc reference
+        # to the original Mojang PlayerControllerMP.attackEntity method.
+        implementation = scope.split(
+            "final class Minecraft189SyntheticVanillaMouseScope", 1)[1]
         for forbidden in (
             "customMcClickMouse", "customMcAttackCrosshairEntity",
             "sendPacket", "attackEntity", "nativeOwnerEpoch",
         ):
-            self.assertNotIn(forbidden, scope)
+            self.assertNotIn(forbidden, implementation)
         synthetic = BRIDGE.split(
             "if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {",
             1)[1].split("} finally {\n                // Every early return", 1)[0]
