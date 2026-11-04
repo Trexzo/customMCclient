@@ -53,8 +53,14 @@ final class UiSettingDecorationsTest {
                 new SettingNumericSpec(0, 100, 1));
         final List<UiDrawCommand> atOne = UiSettingDecorations.compose(
                 NORMAL, value, descriptor, UiThemes.graphite());
-        assertEquals(2, atOne.size());
+        assertEquals(3, atOne.size());
         assertEquals(1.2F, ((UiRoundedRectCommand) atOne.get(1)).width(), 0.001F);
+        final UiRoundedRectCommand lowThumb =
+                (UiRoundedRectCommand) atOne.get(2);
+        assertEquals(6.0F, lowThumb.width(), 0.001F);
+        assertTrue(lowThumb.x() >= NORMAL.x() + NORMAL.width() - 137.0F);
+        assertEquals(UiThemes.graphite().color(UiColorRole.ACCENT),
+                lowThumb.argb());
         assertEquals(Integer.valueOf(1), value.get());
         // The progress witness is entirely inside the native value well:
         // x = row.right - 143 .. row.right - 11.
@@ -67,6 +73,9 @@ final class UiSettingDecorationsTest {
         final List<UiDrawCommand> atMax = UiSettingDecorations.compose(
                 NORMAL, value, descriptor, UiThemes.graphite());
         assertEquals(120F, ((UiRoundedRectCommand) atMax.get(1)).width(), .001F);
+        assertEquals(3, atMax.size());
+        assertEquals(track.x() + track.width() - 6.0F,
+                ((UiRoundedRectCommand) atMax.get(2)).x(), .001F);
     }
 
     @Test
@@ -83,8 +92,11 @@ final class UiSettingDecorationsTest {
         final SettingDescriptor numeric = new SettingDescriptor(
                 "test.zero", "Zero", SettingValueKind.INTEGER, 0,
                 new SettingNumericSpec(0, 100, 1));
-        assertEquals(1, UiSettingDecorations.compose(
-                NORMAL, zero, numeric, UiThemes.graphite()).size());
+        final List<UiDrawCommand> atZero = UiSettingDecorations.compose(
+                NORMAL, zero, numeric, UiThemes.graphite());
+        assertEquals(2, atZero.size()); // bare track + new 0%-position thumb
+        assertEquals(((UiRoundedRectCommand) atZero.get(0)).x(),
+                ((UiRoundedRectCommand) atZero.get(1)).x(), .001F);
         assertTrue(UiSettingDecorations.compose(
                 new UiBounds(0, 0, 60, 12), zero, numeric,
                 UiThemes.graphite()).isEmpty());
