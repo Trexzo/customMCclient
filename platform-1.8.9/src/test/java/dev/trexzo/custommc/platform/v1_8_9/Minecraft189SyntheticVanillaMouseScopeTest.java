@@ -29,11 +29,16 @@ final class Minecraft189SyntheticVanillaMouseScopeTest {
         try (Minecraft189SyntheticVanillaMouseScope.Scope outer =
                 Minecraft189SyntheticVanillaMouseScope.enter()) {
             assertTrue(Minecraft189SyntheticVanillaMouseScope.active());
+            assertTrue(outer.stillCurrent());
             try (Minecraft189SyntheticVanillaMouseScope.Scope inner =
                     Minecraft189SyntheticVanillaMouseScope.enter()) {
                 assertTrue(Minecraft189SyntheticVanillaMouseScope.active());
+                assertTrue(inner.stillCurrent());
+                assertFalse(outer.stillCurrent(),
+                        "nested callback must not borrow outer controller frame");
             }
             assertTrue(Minecraft189SyntheticVanillaMouseScope.active());
+            assertTrue(outer.stillCurrent());
         }
         assertFalse(Minecraft189SyntheticVanillaMouseScope.active());
     }
