@@ -360,7 +360,12 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
         self.assertIn("minecraft.customMcClickMouse();", synthetic)
         self.assertLess(
             synthetic.index("Minecraft189SyntheticVanillaMouseScope.enter()"),
+            synthetic.index("if (!nativeMouseScope.stillCurrent())"))
+        self.assertLess(
+            synthetic.index("if (!nativeMouseScope.stillCurrent())"),
             synthetic.index("minecraft.customMcClickMouse();"))
+        self.assertIn("boolean stillCurrent()", scope)
+        self.assertIn("return !closed && CURRENT.get() == this;", scope)
         # Only the accepted synthetic vanilla branch opens the scope,
         # after existing Criticals, HitSelect and lane checks.
         self.assertLess(
