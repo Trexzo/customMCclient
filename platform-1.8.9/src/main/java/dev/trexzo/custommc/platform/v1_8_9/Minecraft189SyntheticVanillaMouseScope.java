@@ -35,6 +35,11 @@ final class Minecraft189SyntheticVanillaMouseScope {
             this.prior = prior;
         }
 
+        /** The exact current original click frame, never a nested stale one. */
+        boolean stillCurrent() {
+            return !closed && CURRENT.get() == this;
+        }
+
         @Override
         public void close() {
             if (closed) return;
