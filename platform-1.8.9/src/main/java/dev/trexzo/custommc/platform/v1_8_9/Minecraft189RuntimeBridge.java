@@ -3660,6 +3660,11 @@ public final class Minecraft189RuntimeBridge {
                                 try (Minecraft189SyntheticVanillaMouseScope.Scope
                                         nativeMouseScope =
                                         Minecraft189SyntheticVanillaMouseScope.enter()) {
+                                    // Refer to the precise resource before
+                                    // the native call: both -Xlint:try and
+                                    // a nested scope loss must fail closed.
+                                    if (!nativeMouseScope.stillCurrent())
+                                        return;
                                     minecraft.customMcClickMouse();
                                 }
                             } finally {
