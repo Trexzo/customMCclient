@@ -314,6 +314,67 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
         self.assertIn("hitSelectNativeControllerIntent.remove();", observe)
         self.assertIn("noteOriginalNativeControllerAttack(", observe)
 
+    def test_r8_unscoped_synthetic_vanilla_click_is_not_manual_mouse(self):
+        # The old R7 controller gate detected only UUID/HitSelect scopes.
+        # A normal Auto Clicker HOLD click intentionally has no target UUID,
+        # but still needs the same scheduler lane policy at the controller.
+        # No new original mouse handler/hook or attack is introduced.
+        scope = (SOURCE / "Minecraft189SyntheticVanillaMouseScope.java").read_text(
+            encoding="utf-8")
+        for required in (
+            "private static final ThreadLocal<Scope> CURRENT",
+            "static boolean active()",
+            "static Scope enter()",
+            "CURRENT.set(scope);",
+            "implements AutoCloseable",
+            "CURRENT.get() != this",
+            "CURRENT.remove();",
+            "CURRENT.set(prior);",
+        ):
+            self.assertIn(required, scope)
+        for forbidden in (
+            "customMcClickMouse", "customMcAttackCrosshairEntity",
+            "sendPacket", "attackEntity", "nativeOwnerEpoch",
+        ):
+            self.assertNotIn(forbidden, scope)
+        synthetic = BRIDGE.split(
+            "if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {",
+            1)[1].split("} finally {\n                // Every early return", 1)[0]
+        self.assertEqual(1, synthetic.count(
+            "Minecraft189SyntheticVanillaMouseScope.enter()"))
+        self.assertIn("try (Minecraft189SyntheticVanillaMouseScope.Scope", synthetic)
+        self.assertIn("minecraft.customMcClickMouse();", synthetic)
+        self.assertLess(
+            synthetic.index("Minecraft189SyntheticVanillaMouseScope.enter()"),
+            synthetic.index("minecraft.customMcClickMouse();"))
+        # Only the accepted synthetic vanilla branch opens the scope,
+        # after existing Criticals, HitSelect and lane checks.
+        self.assertLess(
+            synthetic.rindex("host.mayRetainOriginalHitSelectAdmission()"),
+            synthetic.index("Minecraft189SyntheticVanillaMouseScope.enter()"))
+        native_callback = BRIDGE.split(
+            "public static synchronized boolean acceptanceControllerDispatchAllowed(",
+            1)[1].split(
+            "public static synchronized void acceptanceControllerAttackEntity(", 1)[0]
+        owner = native_callback.split("final boolean scopedSyntheticAttack =", 1)[1].split(
+            "if (scopedSyntheticAttack) {", 1)[0]
+        self.assertIn("expected != null || expectedTrigger != null", owner)
+        self.assertIn("autoClickerIntent != null", owner)
+        self.assertIn("hitSelectNativeControllerIntent.get() != null", owner)
+        self.assertIn("Minecraft189SyntheticVanillaMouseScope.active()", owner)
+        final = native_callback.split("if (nativeAuthorized) {", 1)[1].split(
+            "return nativeAuthorized;", 1)[0]
+        self.assertLess(
+            final.index("Minecraft189SyntheticVanillaMouseScope.active()"),
+            final.index(".mayRetainSyntheticControllerAdmission()"))
+        # Manual vanilla mouse never opens a synthetic scope in the bridge;
+        # it does not require shouldAutoClick() or a synthetic lane.
+        self.assertIn(
+            "custommc.acceptance.requireManualUnscopedNativeController",
+            native_callback)
+        self.assertIn("if (scopedSyntheticAttack) {", final)
+        self.assertIn("observeHitSelectOriginalControllerArgument(entity);", final)
+
     def test_r3_post_melee_autoblock_preserves_standalone_source_api(self):
         # Existing sword-source JUnit fixtures deliberately call the host
         # native sword/lease APIs without an automatic melee callback.
