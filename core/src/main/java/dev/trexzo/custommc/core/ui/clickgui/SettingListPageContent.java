@@ -62,6 +62,7 @@ public final class SettingListPageContent
     private final ClickGuiContentScrollState scroll =
             new ClickGuiContentScrollState();
     private final UiContentScrollDrag railDrag = new UiContentScrollDrag();
+    private final UiNumericSettingScrub numericScrub = new UiNumericSettingScrub();
     private final SettingEditorController editor =
             new SettingEditorController();
 
@@ -169,19 +170,26 @@ public final class SettingListPageContent
         Objects.requireNonNull(event, "event");
 
         if (event.action() != UiPointerAction.PRESS
-                && !railDrag.dragging()) {
+                && !railDrag.dragging() && !numericScrub.dragging()) {
             return false;
         }
         final List<Entry> visible = entries(context.snapshot());
         final float totalHeight = contentHeight(visible.size());
         if (railDrag.pointer(event, context.bounds(), totalHeight, scroll)) {
-            // Never send rail gestures to the setting editor: no value
-            // adjustment, field focus or unintended theme cycling.
+            if (event.action() == UiPointerAction.PRESS) {
+                numericScrub.cancel();
+            }
+            return true;
+        }
+        // A held numeric scrub owns every MOVE and RELEASE, even when the
+        // pointer crosses another row or leaves the content view.
+        if (numericScrub.pointer(event)) {
             return true;
         }
         if (event.action() != UiPointerAction.PRESS) {
             return false;
         }
+        numericScrub.cancel();
         final float scrollOffset =
                 scroll.offset(totalHeight, context.bounds().height());
         if (UiContentBottomCue.blocksPointer(
@@ -193,14 +201,14 @@ public final class SettingListPageContent
              index < visible.size();
              index++) {
             final Entry entry = visible.get(index);
-            if (!rowBounds(
-                    context.bounds(),
-                    index,
-                    scrollOffset)
-                    .contains(
-                            event.x(),
-                            event.y())) {
+            final UiBounds row = rowBounds(
+                    context.bounds(), index, scrollOffset);
+            if (!row.contains(event.x(), event.y())) {
                 continue;
+            }
+            if (numericScrub.begin(row, entry.setting,
+                    entry.descriptor, event)) {
+                return true;
             }
 
             if (UiThemeSettings.ID.equals(entry.setting.id())) {

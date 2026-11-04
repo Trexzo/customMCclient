@@ -57,6 +57,16 @@ final class UiSettingDecorations {
                         Math.min(1.0F, width * (float) ratio * 0.5F),
                         theme.color(UiColorRole.ACCENT)));
             }
+            // S51: a genuine draggable track now has a restrained,
+            // source-native thumb. Keep it entirely within the original
+            // 132px value well, including its 0% and 100% endpoints.
+            final float thumb = 6.0F;
+            final float thumbLeft = left + Math.max(0.0F,
+                    Math.min(width - thumb,
+                            width * (float) ratio - thumb * 0.5F));
+            draw.add(new UiRoundedRectCommand(3, thumbLeft, top - 2.0F,
+                    thumb, thumb, 3.0F,
+                    theme.color(UiColorRole.ACCENT)));
         }
         return draw;
     }

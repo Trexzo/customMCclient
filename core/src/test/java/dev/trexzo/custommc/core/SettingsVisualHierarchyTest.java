@@ -62,7 +62,7 @@ final class SettingsVisualHierarchyTest {
     }
 
     @Test
-    void visualNumericLevelRemainsStepBasedUnderOriginalRealRowClick() {
+    void visualNumericScrubHintPreservesOriginalRowStepClick() {
         final SettingRegistry settings = new SettingRegistry();
         final Setting<Integer> number = new Setting<Integer>(
                 "combat.delay", 3, v -> v != null && v >= 1 && v <= 6,
@@ -79,10 +79,12 @@ final class SettingsVisualHierarchyTest {
         final List<UiDrawCommand> draw = page.compose(
                 new ClickGuiContentContext(snapshot, PAGE, ROOT,
                         UiThemes.graphite()));
-        assertTrue(containsText(draw, "LEFT +  /  RIGHT -"));
+        assertTrue(containsText(draw, "DRAG BAR  /  LEFT +  /  RIGHT -"));
 
         // The existing 38px native first-row hitbox is x224..676,
-        // y158..196. Visual changes must not move or rewrite input.
+        // y158..196. A click outside the numeric value well must still
+        // use the original one-step left/right controller; S51 only owns
+        // direct scrubbing inside the source numeric track.
         final ClickGuiContentInputContext input =
                 new ClickGuiContentInputContext(snapshot, PAGE, ROOT);
         assertTrue(page.pointer(input, new UiPointerEvent(

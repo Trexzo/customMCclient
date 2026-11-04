@@ -140,9 +140,9 @@ final class UiSettingRowVisuals {
                 return "CLICK TO TOGGLE";
             case INTEGER:
             case DOUBLE:
-                // The existing controller is step-based. Never label the
-                // numeric progress witness a draggable slider.
-                return "LEFT +  /  RIGHT -";
+                // Numeric value well is now a real direct scrubber;
+                // remaining row clicks retain legacy step semantics.
+                return "DRAG BAR  /  LEFT +  /  RIGHT -";
             case TEXT:
                 return "CLICK TO EDIT";
             default:
