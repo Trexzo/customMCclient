@@ -3599,7 +3599,7 @@ public final class Minecraft189RuntimeBridge {
                                 try {
                                     if (!host.mayDispatchScheduledCombatLane()
                                             || !host.mayRetainOriginalCriticalsAdmission()
-                                        || !host.mayRetainOriginalHitSelectAdmission())
+                                            || !host.mayRetainOriginalHitSelectAdmission())
                                         return;
                                     minecraft.customMcAttackCrosshairEntity();
                                 } finally {
