@@ -61,6 +61,12 @@ public final class Minecraft189HostRuntime
             autoClickerControllerLease =
             new Minecraft189AutoClickerControllerLease();
     private long triggerDispatchAdmissionSerial;
+    // One accepted scheduler callback may cross into vanilla mouse/controller
+    // only while its *exact* module lane and lifecycle remain unchanged.
+    private Minecraft189CombatLaneAdmission pendingCombatLane;
+    // A native ray/GUI/ItemStack getter can reenter after HitSelect's
+    // original UUID/hurt admission but before the real controller call.
+    private Minecraft189HitSelectPolicyAdmission pendingHitSelectPolicy;
     private final Minecraft189CriticalsEvidence criticalsEvidence =
             new Minecraft189CriticalsEvidence();
     // Only one exact native player, module policy and scheduler callback
@@ -2578,6 +2584,8 @@ public final class Minecraft189HostRuntime
     void leaveSyntheticCombatCycle(final long token) {
         // No native controller authorization survives an action callback,
         // including an early return, original click exception or GUI veto.
+        pendingCombatLane = null;
+        pendingHitSelectPolicy = null;
         autoClickerControllerLease.clear();
         combatCycle.leave(token);
     }
@@ -3426,6 +3434,8 @@ public final class Minecraft189HostRuntime
     void suspendSyntheticCombatForOriginalGui() {
         requireOpen();
         ++triggerDispatchAdmissionSerial;
+        pendingCombatLane = null;
+        pendingHitSelectPolicy = null;
         criticalsNativeAdmissionSerial = -1L;
         criticalsNativePlayer = null;
         triggerDispatchLease.clear();
@@ -3468,6 +3478,33 @@ public final class Minecraft189HostRuntime
                 nativeHitbox, true);
     }
 
+    /** Single host view of module priority and lifecycle. The snapshot is
+     * captured only after suspending inactive lanes; original World getters
+     * cannot transfer an earned click across a later lane/epoch transition.
+     */
+    private Minecraft189CombatLaneAdmission currentCombatLaneAdmission() {
+        final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+        final Minecraft189TriggerBotModule trigger = featureCatalog.triggerBot();
+        final Minecraft189AutoClickerModule clicker = featureCatalog.autoClicker();
+        return Minecraft189CombatLaneAdmission.capture(
+                aura.active(), trigger.active(), clicker.active(),
+                aura.lifecycleEpoch(), trigger.nativeWorldOwnerEpoch(),
+                clicker.nativeOwnerEpoch());
+    }
+
+    /** Read only: no original ray, World, hurt or recovery state transition.
+     * Explicitly record disabled state too: an OFF->ON->OFF inside a later
+     * getter must not turn an admitted unscoped click into a newer policy.
+     */
+    private Minecraft189HitSelectPolicyAdmission currentHitSelectPolicy() {
+        final Minecraft189HitSelectModule select = featureCatalog.hitSelect();
+        return Minecraft189HitSelectPolicyAdmission.capture(
+                select.active(), select.nativeOwnerEpoch(),
+                select.requireObservedRecoverySetting().get(),
+                select.minTargetHurtTicksSetting().get(),
+                select.maxTargetHurtTicksSetting().get());
+    }
+
     private boolean shouldAutoClickInternal(final boolean crosshairPlayerHit,
             final int crosshairPlayerIndex, final double[] nativeHitbox,
             final boolean requireOriginalTargetUuid) {
@@ -3475,6 +3512,8 @@ public final class Minecraft189HostRuntime
         // Nested external mapped World getters may reenter this scheduler.
         // An older outer callback cannot revive its stale prior admission.
         final long admissionSerial = ++triggerDispatchAdmissionSerial;
+        pendingCombatLane = null;
+        pendingHitSelectPolicy = null;
         criticalsNativeAdmissionSerial = -1L;
         criticalsNativePlayer = null;
         triggerDispatchLease.clear();
@@ -3504,11 +3543,22 @@ public final class Minecraft189HostRuntime
                     worldEntityKindState.snapshot(),
                     worldEntityCombatState.snapshot());
         }
+        // V367 R6: this is the ORIGINAL HitSelect policy at scheduler
+        // intake, AFTER the legitimate source/hurt recovery observation
+        // (which may intentionally advance its epoch), but BEFORE any later
+        // World getter, native UUID read or HitSelect permitsOriginalOwner.
+        // A callback that toggles or edits HitSelect cannot make the
+        // later capture adopt its new state and borrow old click credit.
+        final Minecraft189HitSelectPolicyAdmission intakeHitSelectPolicy =
+                currentHitSelectPolicy();
         // Exactly one Combat module can own an automatic attack callback.
-        // Dedicated Trigger Bot has precedence; legacy Auto Clicker trigger
-        // mode remains for backward-compatible persisted profiles.
+        // Preserve Aura > TriggerBot > legacy Auto Clicker priority, but
+        // never recompute the owner after a reentrant original World getter.
         final Minecraft189TriggerBotModule trigger = featureCatalog.triggerBot();
         final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+        final Minecraft189CombatLaneAdmission.Owner selectedLane =
+                currentCombatLaneAdmission().owner();
+        final Minecraft189CombatLaneAdmission admittedLane;
         final boolean attackHeld = inputState.pointerPressed(
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
         final boolean rightHeld = inputState.pointerPressed(
@@ -3520,9 +3570,11 @@ public final class Minecraft189HostRuntime
         boolean nativeAutoClickerScheduled = false;
         boolean nativeAutoClickerTriggerMode = false;
         long verifiedTriggerEpoch = -1L;
-        if (aura.active()) {
+        if (selectedLane == Minecraft189CombatLaneAdmission.Owner.AURA) {
             trigger.suspend();
             featureCatalog.autoClicker().suspendForGui();
+            admittedLane = currentCombatLaneAdmission();
+            if (admittedLane.owner() != selectedLane) return false;
             // No ray-confirmed player means NO click is possible. Let the
             // existing Aura.shouldClick(false, ...) drop CPS credit without
             // deleting the genuine UUID lock during aim convergence.
@@ -3552,9 +3604,12 @@ public final class Minecraft189HostRuntime
                     "custommc.acceptance.reportKillAuraLockedTarget"))
                 Minecraft189LockedTargetAcceptance.observeAuraSchedule(
                         this, confirmedHit, crosshairPlayerIndex, click);
-        } else if (trigger.active()) {
+        } else if (selectedLane ==
+                Minecraft189CombatLaneAdmission.Owner.TRIGGER_BOT) {
             aura.suspend();
             featureCatalog.autoClicker().suspendForGui();
+            admittedLane = currentCombatLaneAdmission();
+            if (admittedLane.owner() != selectedLane) return false;
             // Runtime source evidence, NOT a cached index or a synthetic
             // guess: bind TriggerBot's confirmation/click credit to the
             // current ORIGINAL World loaded UUID at this exact crosshair.
@@ -3608,6 +3663,8 @@ public final class Minecraft189HostRuntime
         } else {
             aura.suspend();
             trigger.suspend();
+            admittedLane = currentCombatLaneAdmission();
+            if (admittedLane.owner() != selectedLane) return false;
             final Minecraft189AutoClickerModule clicker =
                     featureCatalog.autoClicker();
             final boolean uuidBoundTrigger = requireOriginalTargetUuid
@@ -3679,9 +3736,14 @@ public final class Minecraft189HostRuntime
         // It never alters genuine vanilla mouse presses. A rejected click
         // consumes scheduler credit rather than banking a late burst.
         if (!click) return false;
+        // Never spend click credit earned by another lane or by an earlier
+        // OFF->ON lifetime, even if an original getter reentered and then
+        // restored the same visible active flags (ABA).
+        if (!admittedLane.matches(currentCombatLaneAdmission()))
+            return false;
         final Minecraft189WorldEntityCombatState.Snapshot combat =
                 worldEntityCombatState.snapshot();
-        if (aura.active()) {
+        if (selectedLane == Minecraft189CombatLaneAdmission.Owner.AURA) {
             final Minecraft189TargetRotationState.Snapshot selected =
                     targetRotationState.snapshot();
             if (!selected.available()
@@ -3799,7 +3861,8 @@ public final class Minecraft189HostRuntime
             }
         }
         if (admissionSerial != triggerDispatchAdmissionSerial
-                || clickGuiRuntime.coreRuntime().model().snapshot().open())
+                || clickGuiRuntime.coreRuntime().model().snapshot().open()
+                || !admittedLane.matches(currentCombatLaneAdmission()))
             return false;
         if (verifiedTriggerUuid != null) {
             // Require the ORIGINAL source UUID and module activation that
@@ -3854,7 +3917,64 @@ public final class Minecraft189HostRuntime
         criticalsNativeAdmissionSerial = admissionSerial;
         clickRateTracker.recordPress(
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
+        if (!admittedLane.matches(currentCombatLaneAdmission()))
+            return false;
+        // V367 R6: do NOT adopt the latest policy here; it could have
+        // changed inside native World, HitSelect, Criticals or UUID getters.
+        // The intake policy must still match at the scheduler's LAST gate.
+        if (admissionSerial != triggerDispatchAdmissionSerial
+                || !admittedLane.matches(currentCombatLaneAdmission())
+                || !intakeHitSelectPolicy.matches(currentHitSelectPolicy()))
+            return false;
+        pendingHitSelectPolicy = intakeHitSelectPolicy;
+        pendingCombatLane = admittedLane;
         return true;
+    }
+
+    /**
+     * V367: the scheduled lane stays owned across the original bridge's
+     * hotbar selection, GuiScreen reads, HitSelect and native controller.
+     * Never transfer an accepted click after a module OFF->ON ABA or a
+     * reentrant higher/lower-priority toggle; no module is enabled here.
+     * This read-only gate is intentionally repeatable before each dispatch.
+     */
+    boolean mayDispatchScheduledCombatLane() {
+        requireOpen();
+        return pendingCombatLane != null
+                && pendingCombatLane.matches(currentCombatLaneAdmission())
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open();
+    }
+
+    /**
+     * V367 R5: final read-only HitSelect lifetime/policy guard. The real
+     * source UUID and hurt window have *already* been rechecked by
+     * permitsHitSelectAtNativeDispatch(). No new native source getter,
+     * recovery-state transition, attack or synthetic click occurs here.
+     */
+    boolean mayRetainOriginalHitSelectAdmission() {
+        requireOpen();
+        return mayDispatchScheduledCombatLane()
+                && pendingHitSelectPolicy != null
+                && pendingHitSelectPolicy.matches(currentHitSelectPolicy());
+    }
+
+    /**
+     * V367 R7: source-original PlayerControllerMP callback boundary. A
+     * mapped Entity UUID getter can synchronously reenter and revoke the
+     * scheduler's existing lane, HitSelect policy or Criticals source AFTER
+     * the bridge's final pre-controller checks. Retain only the exact same
+     * admitted tuple before vanilla packet side effects. This reads NO
+     * native target, hurt-time, movement or World getter and creates no
+     * attack permission: a missing/old ticket always fails closed.
+     *
+     * Manual vanilla clicks never invoke this method. The bridge invokes
+     * it only for a provably synthetic scoped controller call.
+     */
+    boolean mayRetainSyntheticControllerAdmission() {
+        requireOpen();
+        return mayDispatchScheduledCombatLane()
+                && mayRetainOriginalCriticalsAdmission()
+                && mayRetainOriginalHitSelectAdmission();
     }
 
     /**
@@ -3920,6 +4040,39 @@ public final class Minecraft189HostRuntime
                 && module.requireDescendingSetting().get()
                         == criticalsNativeRequireDescending
                 && !clickGuiRuntime.coreRuntime().model().snapshot().open();
+    }
+
+    /**
+     * V367 R4: read-only final Criticals admission. The genuine movement
+     * getters were already checked twice by mayDispatchOriginalCriticals().
+     * A later HitSelect ray, original GuiScreen read or controller-argument
+     * source callback may synchronously OFF->ON Criticals, change policy or
+     * replace the original local player. The earlier successful proof must
+     * not authorize a new lifetime or source.
+     *
+     * Do not query original fall/motion getters here: doing so could mint
+     * a new observation or change native callback ordering. Disabled
+     * Criticals preserves the legacy permissive state, subject to the
+     * exact same scheduler serial, enabled flag and module policy.
+     */
+    boolean mayRetainOriginalCriticalsAdmission() {
+        requireOpen();
+        final Minecraft189CriticalsModule module = featureCatalog.criticals();
+        if (!mayDispatchScheduledCombatLane()
+                || criticalsNativeAdmissionSerial < 0L
+                || criticalsNativeAdmissionSerial
+                        != triggerDispatchAdmissionSerial
+                || module.active() != criticalsNativeActive
+                || module.lifecycleEpoch() != criticalsNativeLifecycleEpoch
+                || module.minimumFallDistanceSetting().get()
+                        != criticalsNativeMinimumFall
+                || module.requireDescendingSetting().get()
+                        != criticalsNativeRequireDescending)
+            return false;
+        return !module.active()
+                || criticalNativeSourceStillOwned(
+                        criticalsNativePlayer,
+                        criticalsNativeSourceGeneration);
     }
 
     private boolean criticalNativeSourceStillOwned(
@@ -4098,6 +4251,8 @@ public final class Minecraft189HostRuntime
         // lease, module, hotbar or UI teardown. A stale finally cannot
         // release a newer generation created by another callback.
         combatCycle.revoke();
+        pendingCombatLane = null;
+        pendingHitSelectPolicy = null;
         autoClickerControllerLease.clear();
         inputState.clear();
         frameRateTracker.clear();

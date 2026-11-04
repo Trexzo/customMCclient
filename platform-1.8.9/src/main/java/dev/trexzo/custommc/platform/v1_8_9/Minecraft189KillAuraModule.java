@@ -54,6 +54,9 @@ public final class Minecraft189KillAuraModule implements Module {
     private final Setting<Boolean> lockTarget = new Setting<Boolean>(
             LOCK_TARGET, Boolean.FALSE, value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // OFF->ON must invalidate any outstanding host combat-lane ticket,
+    // including an ABA disable/enable during a mapped native getter.
+    private long lifecycleEpoch;
     private UUID lockedTargetUuid;
     private int phase;
     private int sampledCps;
@@ -90,14 +93,17 @@ public final class Minecraft189KillAuraModule implements Module {
                 before, lockedTargetUuid, reason);
     }
     synchronized boolean active() { return enabled; }
+    synchronized long lifecycleEpoch() { return lifecycleEpoch; }
 
     @Override
     public synchronized void onEnable() {
+        ++lifecycleEpoch;
         enabled = true;
         clear("module-enable");
     }
     @Override
     public synchronized void onDisable() {
+        ++lifecycleEpoch;
         enabled = false;
         clear("module-disable");
     }

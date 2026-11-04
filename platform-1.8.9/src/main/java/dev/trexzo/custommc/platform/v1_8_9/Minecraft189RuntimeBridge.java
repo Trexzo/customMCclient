@@ -3246,6 +3246,7 @@ public final class Minecraft189RuntimeBridge {
                 Minecraft189LockedTargetAcceptance.observeNativeRay(
                         host, playerHit, playerIndex);
             if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
+                if (!host.mayDispatchScheduledCombatLane()) return;
                 if (!host.claimSyntheticCombatPrimary(
                         combatCycleToken,
                         Minecraft189CombatCycleArbiter.Primary.MELEE))
@@ -3444,7 +3445,8 @@ public final class Minecraft189RuntimeBridge {
                     // the failed -1 lease must not still attack with the
                     // other module's temporary item. A clean no-switch
                     // vanilla attack remains legal with no active owner.
-                    if (!host.mayDispatchSyntheticMelee(originalSlot))
+                    if (!host.mayDispatchSyntheticMelee(originalSlot)
+                            || !host.mayDispatchScheduledCombatLane())
                         return;
                     if (Boolean.getBoolean(
                             "custommc.acceptance.reportTriggerBotRealPvp")) {
@@ -3545,6 +3547,10 @@ public final class Minecraft189RuntimeBridge {
                             armHitSelectOriginalControllerIntent(
                                     host, hitSelectInitialUuid);
                             try {
+                                if (!host.mayDispatchScheduledCombatLane()
+                                        || !host.mayRetainOriginalCriticalsAdmission()
+                                        || !host.mayRetainOriginalHitSelectAdmission())
+                                    return;
                                 minecraft.customMcAttackCrosshairEntity();
                             } finally {
                                 hitSelectNativeControllerIntent.remove();
@@ -3591,6 +3597,10 @@ public final class Minecraft189RuntimeBridge {
                                 armHitSelectOriginalControllerIntent(
                                         host, hitSelectInitialUuid);
                                 try {
+                                    if (!host.mayDispatchScheduledCombatLane()
+                                            || !host.mayRetainOriginalCriticalsAdmission()
+                                            || !host.mayRetainOriginalHitSelectAdmission())
+                                        return;
                                     minecraft.customMcAttackCrosshairEntity();
                                 } finally {
                                     hitSelectNativeControllerIntent.remove();
@@ -3637,6 +3647,10 @@ public final class Minecraft189RuntimeBridge {
                                 // Keep precisely one original clickMouse
                                 // call: physical/hold mode is unscoped;
                                 // trigger mode carries an original UUID.
+                                if (!host.mayDispatchScheduledCombatLane()
+                                        || !host.mayRetainOriginalCriticalsAdmission()
+                                        || !host.mayRetainOriginalHitSelectAdmission())
+                                    return;
                                 minecraft.customMcClickMouse();
                             } finally {
                                 hitSelectNativeControllerIntent.remove();
@@ -3656,12 +3670,18 @@ public final class Minecraft189RuntimeBridge {
                     // vanilla clickMouse() throws during invocation.
                     host.restoreCombatSlotAfterSyntheticClick(originalSlot);
                 }
-                if (swordBlock != null && host.mayStartAutoBlock(
-                        playerHit, playerIndex, originalSlot, alreadyUsingItem)
+                if (swordBlock != null
+                        && host.mayDispatchScheduledCombatLane()
+                        && host.mayStartAutoBlock(
+                                playerHit, playerIndex, originalSlot, alreadyUsingItem)
+                        && host.mayDispatchScheduledCombatLane()
                         && host.claimSyntheticCombatReblock(combatCycleToken)) {
                     // Source-mapped rightClickMouse is the only way to begin
                     // vanilla sword use. Verify it actually started before
                     // tracking ownership (cooldown/no-item may refuse it).
+                    // Keep standalone original-sword APIs unchanged: only
+                    // an automatic melee callback owns this extra lane veto.
+                    if (!host.mayDispatchScheduledCombatLane()) return;
                     final long useToken = host.beginAutoBlockNativeUse();
                     if (useToken != 0) {
                         try {
@@ -3673,15 +3693,25 @@ public final class Minecraft189RuntimeBridge {
                             // the original source AFTER mayStart/beginNativeUse
                             // and replace the item, player or policy. Veto
                             // the *actual* vanilla right click before dispatch.
-                            if (!host.mayDispatchAutoBlockNativeUse(useToken))
+                            if (!host.mayDispatchAutoBlockNativeUse(useToken)
+                                    || !host.mayDispatchScheduledCombatLane())
                                 return;
                             // Final vanilla screen read AFTER that native
                             // sword check: source getters may open GuiScreen.
                             if (vetoOriginalScreenBeforeNativeCombat(
                                     host, minecraft)) return;
+                            // V367 R3: an original GUI getter or module
+                            // lifecycle transition after sword validation
+                            // must not inherit the melee lane's old reblock.
+                            if (!host.mayDispatchScheduledCombatLane())
+                                return;
                             minecraft.customMcRightClickMouse();
                             if (swordBlock.customMcIsUsingItem()) {
-                                host.recordAutoBlockStart(useToken);
+                                // The original vanilla item observation may
+                                // itself reenter a different combat module.
+                                // Never record stale synthetic sword ownership.
+                                if (host.mayDispatchScheduledCombatLane())
+                                    host.recordAutoBlockStart(useToken);
                             }
                         } finally {
                             // This exact uncommitted native use lease may
@@ -3992,8 +4022,30 @@ public final class Minecraft189RuntimeBridge {
                             activeRuntime.requireHostRuntime(),
                             controller, player, entity);
         }
-        if (nativeAuthorized)
+        if (nativeAuthorized) {
+            // V367 R7: genuine original Entity UUID getters above can
+            // reenter module settings/GUI/source callbacks AFTER the
+            // bridge's last scheduler guard. Never let an old synthetic
+            // Aura, TriggerBot, indexed Auto Clicker or HitSelect-owner
+            // scope cross this FINAL original controller boundary.
+            //
+            // A manual vanilla attack has none of these thread-local
+            // owners: do not require a synthetic scheduler admission for
+            // it. Ordinary unscoped Auto Clicker hold-mode retains the
+            // existing native vanilla clickMouse path, which cannot be
+            // distinguished from physical input here without new hooks.
+            final boolean scopedSyntheticAttack =
+                    expected != null || expectedTrigger != null
+                    || autoClickerIntent != null
+                    || hitSelectNativeControllerIntent.get() != null;
+            if (scopedSyntheticAttack) {
+                if (activeRuntime == null || !activeRuntime.hostInstalled()
+                        || !activeRuntime.requireHostRuntime()
+                                .mayRetainSyntheticControllerAdmission())
+                    return false;
+            }
             observeHitSelectOriginalControllerArgument(entity);
+        }
         return nativeAuthorized;
     }
 
