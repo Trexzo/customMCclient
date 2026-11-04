@@ -246,6 +246,74 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
             "host.featureCatalog().hitSelect().noteOriginalNativeControllerAttack(",
             BRIDGE)
 
+    def test_r7_real_controller_boundary_rejects_stale_scoped_synthetic_only(self):
+        # A source Entity UUID getter occurs within the actual transformed
+        # Mojang PlayerControllerMP callback, AFTER scheduler and bridge
+        # validation. It must not transfer an older scoped synthetic attack
+        # across a nested module change. Manual mouse has no synthetic lane.
+        policy = HOST.split("boolean mayRetainSyntheticControllerAdmission() {", 1)[1].split(
+            "\n    }", 1)[0]
+        for requirement in (
+            "requireOpen();",
+            "mayDispatchScheduledCombatLane()",
+            "mayRetainOriginalCriticalsAdmission()",
+            "mayRetainOriginalHitSelectAdmission()",
+        ):
+            self.assertIn(requirement, policy)
+        for forbidden in (
+            "customMc", "observeOriginalOwner", "noteOriginal",
+            "customMcAttackCrosshairEntity", "customMcClickMouse",
+            "triggerDispatchLease.arm(", "recordPress(",
+        ):
+            self.assertNotIn(forbidden, policy)
+        callback = BRIDGE.split(
+            "public static synchronized boolean acceptanceControllerDispatchAllowed(", 1
+        )[1].split(
+            "public static synchronized void acceptanceControllerAttackEntity(", 1
+        )[0]
+        self.assertIn("final UUID expected = auraDispatchUuid.get();", callback)
+        self.assertIn("final UUID expectedTrigger = triggerDispatchUuid.get();", callback)
+        self.assertIn("autoClickerControllerIntent.get();", callback)
+        self.assertIn("final boolean nativeAuthorized;", callback)
+        self.assertIn("if (nativeAuthorized) {", callback)
+        guard = callback.split("if (nativeAuthorized) {", 1)[1].split(
+            "return nativeAuthorized;", 1)[0]
+        for required in (
+            "expected != null || expectedTrigger != null",
+            "autoClickerIntent != null",
+            "hitSelectNativeControllerIntent.get() != null",
+            "if (scopedSyntheticAttack) {",
+            "activeRuntime == null || !activeRuntime.hostInstalled()",
+            ".mayRetainSyntheticControllerAdmission()",
+            "return false;",
+            "observeHitSelectOriginalControllerArgument(entity);",
+        ):
+            self.assertIn(required, guard)
+        # Real original UUID mismatch, source generation and acceptance
+        # stale-dispatch negative oracles must retain their own earlier
+        # authorization checks before the new scoped owner veto.
+        self.assertLess(callback.index("if (expected != null) {"),
+                        callback.index("if (nativeAuthorized) {"))
+        self.assertLess(callback.index("final boolean nativeAuthorized;"),
+                        callback.index("if (nativeAuthorized) {"))
+        self.assertLess(guard.index(".mayRetainSyntheticControllerAdmission()"),
+                        guard.index("observeHitSelectOriginalControllerArgument(entity);"))
+        self.assertIn("return false; // BEFORE vanilla ATTACK packet side effects.", callback)
+        # Manual unscoped native melee retains its vanilla path and does
+        # not need host shouldAutoClick or a synthetic-only ticket.
+        self.assertNotIn("if (!activeRuntime.requireHostRuntime()\n"
+                         "        .mayRetainSyntheticControllerAdmission())", callback)
+        self.assertIn(
+            "custommc.acceptance.requireManualUnscopedNativeController", callback)
+        # Existing recovery state only advances after true controller veto
+        # success; no scheduler or probe can invent a confirmed hit.
+        observe = BRIDGE.split(
+            "private static void observeHitSelectOriginalControllerArgument(", 1
+        )[1].split("private static boolean acceptanceUnlockedOwnerVetoReported;", 1)[0]
+        self.assertIn("intent == null) return;", observe)
+        self.assertIn("hitSelectNativeControllerIntent.remove();", observe)
+        self.assertIn("noteOriginalNativeControllerAttack(", observe)
+
     def test_r3_post_melee_autoblock_preserves_standalone_source_api(self):
         # Existing sword-source JUnit fixtures deliberately call the host
         # native sword/lease APIs without an automatic melee callback.
