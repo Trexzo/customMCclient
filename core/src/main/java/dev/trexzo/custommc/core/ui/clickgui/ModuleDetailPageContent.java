@@ -238,6 +238,11 @@ public final class ModuleDetailPageContent
     }
 
     @Override
+    public boolean capturesPointerDrag() {
+        return railDrag.dragging() || numericScrub.dragging();
+    }
+
+    @Override
     public boolean pointer(
             final ClickGuiContentInputContext context,
             final UiPointerEvent event) {

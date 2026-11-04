@@ -104,11 +104,19 @@ public final class ClickGuiInputController
                     layoutEngine.layout(viewport), event, viewport);
         }
         if (event.action() == UiPointerAction.MOVE) {
-            // Motion is routed only to the currently visible content.
-            // No focus changes, nav selection or module toggle on motion.
+            // An owned scrollbar/numeric drag must keep receiving physical
+            // MOVE when the cursor crosses the content edge, just as RELEASE
+            // already does. Unowned motion outside the content remains vetoed.
+            // Never route such motion to search, navigation or module toggles.
             final ClickGuiLayout layout = layoutEngine.layout(viewport);
             if (!layout.content().contains(event.x(), event.y())) {
-                return false;
+                final ClickGuiPage selected = selectedPage(snapshot);
+                if (selected == null) return false;
+                final ClickGuiPageContent content =
+                        contentRegistry.find(selected.id());
+                if (content == null || !content.capturesPointerDrag()) {
+                    return false;
+                }
             }
             return dispatchContentPointer(
                     snapshot, layout, event, viewport);

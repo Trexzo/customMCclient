@@ -512,6 +512,69 @@ final class ClickGuiInputControllerTest {
                 name.get());
     }
 
+
+    @Test
+    void capturedNumericScrubReceivesOutsideMovesAndUnownedHoverIsVetoed() {
+        final ClickGuiModel model = new ClickGuiModel();
+        model.register(new ClickGuiPage("settings", "Settings", 0));
+        model.open();
+        final SettingRegistry settings = new SettingRegistry();
+        final Setting<Integer> range = new Setting<Integer>(
+                "ui.outsideDrag", 40,
+                value -> value != null && value >= 0 && value <= 100,
+                SettingCodecs.INTEGER);
+        settings.register(range);
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        presentations.register(new SettingDescriptor(
+                "ui.outsideDrag", "Outside Drag",
+                SettingValueKind.INTEGER, 0,
+                new SettingNumericSpec(0.0D, 100.0D, 5.0D)));
+        final ClickGuiContentRegistry contents =
+                new ClickGuiContentRegistry();
+        final SettingListPageContent page =
+                new SettingListPageContent(settings, presentations);
+        contents.register("settings", page);
+        final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+        final ClickGuiLayout layout =
+                new ClickGuiLayoutEngine().layout(viewport);
+        final float outsideRight = layout.content().x()
+                + layout.content().width() + 100.0F;
+        final float outsideLeft = layout.content().x() - 100.0F;
+        final float rowY = layout.content().y() + 68.0F;
+        final float wellX = layout.content().x()
+                + layout.content().width() - 155.0F;
+        try (ClickGuiInputController input = new ClickGuiInputController(
+                model, contents, new UiFocusManager())) {
+            // No owner: outside content motion remains rejected.
+            assertFalse(input.pointer(new UiPointerEvent(
+                    outsideRight, rowY, UiPointerButton.LEFT,
+                    UiPointerAction.MOVE), viewport));
+            assertEquals(Integer.valueOf(40), range.get());
+            assertTrue(input.pointer(press(wellX, rowY), viewport));
+            assertTrue(page.capturesPointerDrag());
+            // The old S51 controller dropped both events at this boundary;
+            // the underlying scrub itself already clamps correctly.
+            assertTrue(input.pointer(new UiPointerEvent(
+                    outsideRight, rowY, UiPointerButton.LEFT,
+                    UiPointerAction.MOVE), viewport));
+            assertEquals(Integer.valueOf(100), range.get());
+            assertTrue(input.pointer(new UiPointerEvent(
+                    outsideLeft, rowY, UiPointerButton.LEFT,
+                    UiPointerAction.MOVE), viewport));
+            assertEquals(Integer.valueOf(0), range.get());
+            assertTrue(input.pointer(new UiPointerEvent(
+                    outsideRight, rowY, UiPointerButton.LEFT,
+                    UiPointerAction.RELEASE), viewport));
+            assertFalse(page.capturesPointerDrag());
+            assertFalse(input.pointer(new UiPointerEvent(
+                    outsideRight, rowY, UiPointerButton.LEFT,
+                    UiPointerAction.MOVE), viewport));
+            assertEquals(Integer.valueOf(0), range.get());
+            assertEquals("settings", model.snapshot().selectedPageId());
+        }
+    }
+
     private static ClickGuiModel model() {
         final ClickGuiModel model =
                 new ClickGuiModel();
