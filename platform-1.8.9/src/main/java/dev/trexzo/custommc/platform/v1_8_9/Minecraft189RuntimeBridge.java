@@ -3548,7 +3548,8 @@ public final class Minecraft189RuntimeBridge {
                                     host, hitSelectInitialUuid);
                             try {
                                 if (!host.mayDispatchScheduledCombatLane()
-                                        || !host.mayRetainOriginalCriticalsAdmission())
+                                        || !host.mayRetainOriginalCriticalsAdmission()
+                                        || !host.mayRetainOriginalHitSelectAdmission())
                                     return;
                                 minecraft.customMcAttackCrosshairEntity();
                             } finally {
@@ -3597,7 +3598,8 @@ public final class Minecraft189RuntimeBridge {
                                         host, hitSelectInitialUuid);
                                 try {
                                     if (!host.mayDispatchScheduledCombatLane()
-                                            || !host.mayRetainOriginalCriticalsAdmission())
+                                            || !host.mayRetainOriginalCriticalsAdmission()
+                                        || !host.mayRetainOriginalHitSelectAdmission())
                                         return;
                                     minecraft.customMcAttackCrosshairEntity();
                                 } finally {
@@ -3646,7 +3648,8 @@ public final class Minecraft189RuntimeBridge {
                                 // call: physical/hold mode is unscoped;
                                 // trigger mode carries an original UUID.
                                 if (!host.mayDispatchScheduledCombatLane()
-                                        || !host.mayRetainOriginalCriticalsAdmission())
+                                        || !host.mayRetainOriginalCriticalsAdmission()
+                                        || !host.mayRetainOriginalHitSelectAdmission())
                                     return;
                                 minecraft.customMcClickMouse();
                             } finally {
