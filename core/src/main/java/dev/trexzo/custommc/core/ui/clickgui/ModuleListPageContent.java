@@ -303,6 +303,11 @@ public final class ModuleListPageContent
     }
 
     @Override
+    public boolean capturesPointerDrag() {
+        return railDrag.dragging();
+    }
+
+    @Override
     public boolean pointer(
             final ClickGuiContentInputContext context,
             final UiPointerEvent event) {

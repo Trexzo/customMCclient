@@ -21,6 +21,15 @@ public interface ClickGuiPageContent {
         return false;
     }
 
+    /**
+     * True only while a page owns an active pointer drag. The top-level
+     * controller may then route MOVE outside the content rectangle until
+     * RELEASE, without forwarding unowned hover to hidden controls.
+     */
+    default boolean capturesPointerDrag() {
+        return false;
+    }
+
     default boolean scroll(
             final ClickGuiContentInputContext context,
             final UiScrollEvent event) {
