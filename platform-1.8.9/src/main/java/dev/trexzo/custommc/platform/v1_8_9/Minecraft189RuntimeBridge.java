@@ -4022,8 +4022,30 @@ public final class Minecraft189RuntimeBridge {
                             activeRuntime.requireHostRuntime(),
                             controller, player, entity);
         }
-        if (nativeAuthorized)
+        if (nativeAuthorized) {
+            // V367 R7: genuine original Entity UUID getters above can
+            // reenter module settings/GUI/source callbacks AFTER the
+            // bridge's last scheduler guard. Never let an old synthetic
+            // Aura, TriggerBot, indexed Auto Clicker or HitSelect-owner
+            // scope cross this FINAL original controller boundary.
+            //
+            // A manual vanilla attack has none of these thread-local
+            // owners: do not require a synthetic scheduler admission for
+            // it. Ordinary unscoped Auto Clicker hold-mode retains the
+            // existing native vanilla clickMouse path, which cannot be
+            // distinguished from physical input here without new hooks.
+            final boolean scopedSyntheticAttack =
+                    expected != null || expectedTrigger != null
+                    || autoClickerIntent != null
+                    || hitSelectNativeControllerIntent.get() != null;
+            if (scopedSyntheticAttack) {
+                if (activeRuntime == null || !activeRuntime.hostInstalled()
+                        || !activeRuntime.requireHostRuntime()
+                                .mayRetainSyntheticControllerAdmission())
+                    return false;
+            }
             observeHitSelectOriginalControllerArgument(entity);
+        }
         return nativeAuthorized;
     }
 
