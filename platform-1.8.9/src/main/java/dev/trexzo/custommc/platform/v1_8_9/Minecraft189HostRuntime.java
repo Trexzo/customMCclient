@@ -3959,6 +3959,25 @@ public final class Minecraft189HostRuntime
     }
 
     /**
+     * V367 R7: source-original PlayerControllerMP callback boundary. A
+     * mapped Entity UUID getter can synchronously reenter and revoke the
+     * scheduler's existing lane, HitSelect policy or Criticals source AFTER
+     * the bridge's final pre-controller checks. Retain only the exact same
+     * admitted tuple before vanilla packet side effects. This reads NO
+     * native target, hurt-time, movement or World getter and creates no
+     * attack permission: a missing/old ticket always fails closed.
+     *
+     * Manual vanilla clicks never invoke this method. The bridge invokes
+     * it only for a provably synthetic scoped controller call.
+     */
+    boolean mayRetainSyntheticControllerAdmission() {
+        requireOpen();
+        return mayDispatchScheduledCombatLane()
+                && mayRetainOriginalCriticalsAdmission()
+                && mayRetainOriginalHitSelectAdmission();
+    }
+
+    /**
      * Final genuine local-player Criticals gate, shared by native Aura,
      * TriggerBot and AutoClicker. HitSelect's original UUID/hurt recovery
      * remains independent. No jump, packet, fake fallDistance or controller.
