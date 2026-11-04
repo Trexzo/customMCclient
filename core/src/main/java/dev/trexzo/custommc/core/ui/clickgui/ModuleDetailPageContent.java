@@ -238,6 +238,12 @@ public final class ModuleDetailPageContent
     }
 
     @Override
+    public void cancelPointerDrag() {
+        railDrag.cancel();
+        numericScrub.cancel();
+    }
+
+    @Override
     public boolean capturesPointerDrag() {
         return railDrag.dragging() || numericScrub.dragging();
     }

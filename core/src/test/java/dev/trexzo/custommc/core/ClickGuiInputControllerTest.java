@@ -575,6 +575,75 @@ final class ClickGuiInputControllerTest {
         }
     }
 
+
+    @Test
+    void dragCaptureCannotResumeAfterHiddenPageSwitchOrGuiReopen() {
+        final ClickGuiModel model = new ClickGuiModel();
+        model.register(new ClickGuiPage("settings", "Settings", 0));
+        model.register(new ClickGuiPage("other", "Other", 10));
+        model.open();
+        final SettingRegistry settings = new SettingRegistry();
+        final Setting<Integer> range = new Setting<Integer>(
+                "ui.sessionRange", 40, x -> x != null && x >= 0 && x <= 100,
+                SettingCodecs.INTEGER);
+        settings.register(range);
+        final SettingPresentationRegistry descriptions =
+                new SettingPresentationRegistry();
+        descriptions.register(new SettingDescriptor(
+                "ui.sessionRange", "Session Range", SettingValueKind.INTEGER,
+                0, new SettingNumericSpec(0, 100, 5)));
+        final SettingListPageContent page =
+                new SettingListPageContent(settings, descriptions);
+        final ClickGuiContentRegistry contents =
+                new ClickGuiContentRegistry();
+        contents.register("settings", page);
+        final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+        final ClickGuiLayout layout =
+                new ClickGuiLayoutEngine().layout(viewport);
+        final float x = layout.content().x() + layout.content().width() - 155;
+        final float y = layout.content().y() + 68;
+        final float outside = layout.content().x()
+                + layout.content().width() + 100;
+        final UiPointerEvent outsideMove = new UiPointerEvent(
+                outside, y, UiPointerButton.LEFT, UiPointerAction.MOVE);
+        final ClickGuiInputController input = new ClickGuiInputController(
+                model, contents, new UiFocusManager());
+        try {
+            assertTrue(input.pointer(press(x, y), viewport));
+            assertTrue(page.capturesPointerDrag());
+            final int firstValue = range.get();
+
+            // No pointer events between A -> B -> A: comparing page name
+            // alone is not enough to reject an older captured gesture.
+            model.select("other");
+            model.select("settings");
+            assertFalse(input.pointer(outsideMove, viewport));
+            assertFalse(page.capturesPointerDrag());
+            assertEquals(firstValue, range.get());
+
+            assertTrue(input.pointer(press(x, y), viewport));
+            assertTrue(page.capturesPointerDrag());
+            model.close();
+            model.open();
+            assertFalse(input.pointer(outsideMove, viewport));
+            assertFalse(page.capturesPointerDrag());
+
+            // Unchanged context retains active S52 outside-drag behavior.
+            assertTrue(input.pointer(press(x, y), viewport));
+            assertTrue(input.pointer(outsideMove, viewport));
+            assertEquals(Integer.valueOf(100), range.get());
+            assertTrue(input.pointer(new UiPointerEvent(outside, y,
+                    UiPointerButton.LEFT, UiPointerAction.RELEASE), viewport));
+            assertFalse(page.capturesPointerDrag());
+
+            assertTrue(input.pointer(press(x, y), viewport));
+            assertTrue(page.capturesPointerDrag());
+        } finally {
+            input.close();
+        }
+        assertFalse(page.capturesPointerDrag());
+    }
+
     private static ClickGuiModel model() {
         final ClickGuiModel model =
                 new ClickGuiModel();

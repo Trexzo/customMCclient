@@ -303,6 +303,11 @@ public final class ModuleListPageContent
     }
 
     @Override
+    public void cancelPointerDrag() {
+        railDrag.cancel();
+    }
+
+    @Override
     public boolean capturesPointerDrag() {
         return railDrag.dragging();
     }
