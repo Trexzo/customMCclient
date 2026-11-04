@@ -3651,7 +3651,22 @@ public final class Minecraft189RuntimeBridge {
                                         || !host.mayRetainOriginalCriticalsAdmission()
                                         || !host.mayRetainOriginalHitSelectAdmission())
                                     return;
-                                minecraft.customMcClickMouse();
+                                // R8: label only this synthetic vanilla
+                                // call frame. Genuine manual Minecraft
+                                // clickMouse never enters the scope. A real
+                                // controller attack (if the original focus
+                                // and cooldown permit it) revalidates the
+                                // scheduler owner after Entity UUID reads.
+                                try (Minecraft189SyntheticVanillaMouseScope.Scope
+                                        nativeMouseScope =
+                                        Minecraft189SyntheticVanillaMouseScope.enter()) {
+                                    // Refer to the precise resource before
+                                    // the native call: both -Xlint:try and
+                                    // a nested scope loss must fail closed.
+                                    if (!nativeMouseScope.stillCurrent())
+                                        return;
+                                    minecraft.customMcClickMouse();
+                                }
                             } finally {
                                 hitSelectNativeControllerIntent.remove();
                                 autoClickerControllerIntent.remove();
@@ -4031,13 +4046,15 @@ public final class Minecraft189RuntimeBridge {
             //
             // A manual vanilla attack has none of these thread-local
             // owners: do not require a synthetic scheduler admission for
-            // it. Ordinary unscoped Auto Clicker hold-mode retains the
-            // existing native vanilla clickMouse path, which cannot be
-            // distinguished from physical input here without new hooks.
+            // it. Ordinary Auto Clicker hold-mode now carries a separate
+            // synchronous vanilla-click ThreadLocal scope (R8), not a
+            // synthetic target UUID; the native clickMouse method still
+            // decides whether an attack is actually issued.
             final boolean scopedSyntheticAttack =
                     expected != null || expectedTrigger != null
                     || autoClickerIntent != null
-                    || hitSelectNativeControllerIntent.get() != null;
+                    || hitSelectNativeControllerIntent.get() != null
+                    || Minecraft189SyntheticVanillaMouseScope.active();
             if (scopedSyntheticAttack) {
                 if (activeRuntime == null || !activeRuntime.hostInstalled()
                         || !activeRuntime.requireHostRuntime()
