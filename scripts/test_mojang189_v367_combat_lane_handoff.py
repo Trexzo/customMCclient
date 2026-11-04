@@ -189,13 +189,29 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
         scheduler = HOST.split("private boolean shouldAutoClickInternal(", 1)[1].split(
             "boolean mayDispatchScheduledCombatLane()", 1)[0]
         self.assertIn("pendingHitSelectPolicy = null;", scheduler)
-        self.assertIn("pendingHitSelectPolicy = hitSelectPolicy;", scheduler)
+        self.assertIn("pendingHitSelectPolicy = intakeHitSelectPolicy;", scheduler)
+        self.assertIn("intakeHitSelectPolicy.matches(currentHitSelectPolicy())", scheduler)
+        # R6 fixes the older late-snapshot ABA window: intake happens AFTER
+        # legitimate recovery observation (which can update an epoch) but
+        # BEFORE original-world UUID/hurt policy checks and Criticals.
+        self.assertLess(
+            scheduler.index("hitSelect.observeOriginalOwner("),
+            scheduler.index("final Minecraft189HitSelectPolicyAdmission intakeHitSelectPolicy ="))
+        self.assertLess(
+            scheduler.index("final Minecraft189HitSelectPolicyAdmission intakeHitSelectPolicy ="),
+            scheduler.index("hitSelect.permitsOriginalOwner("))
         self.assertLess(
             scheduler.index("hitSelect.permitsOriginalOwner("),
-            scheduler.index("pendingHitSelectPolicy = hitSelectPolicy;"))
+            scheduler.index("intakeHitSelectPolicy.matches(currentHitSelectPolicy())"))
         self.assertLess(
-            scheduler.index("pendingHitSelectPolicy = hitSelectPolicy;"),
+            scheduler.index("intakeHitSelectPolicy.matches(currentHitSelectPolicy())"),
+            scheduler.index("pendingHitSelectPolicy = intakeHitSelectPolicy;"))
+        self.assertLess(
+            scheduler.index("pendingHitSelectPolicy = intakeHitSelectPolicy;"),
             scheduler.index("pendingCombatLane = admittedLane;"))
+        self.assertNotIn(
+            "final Minecraft189HitSelectPolicyAdmission hitSelectPolicy =",
+            scheduler)
         guard = HOST.split("boolean mayRetainOriginalHitSelectAdmission() {", 1)[1].split(
             "\n    }", 1)[0]
         self.assertIn("mayDispatchScheduledCombatLane()", guard)
