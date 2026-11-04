@@ -52,6 +52,55 @@ final class Minecraft189HitSelectPolicyAdmissionTest {
     }
 
     @Test
+    void originalSchedulerIntakeRejectsChangedPolicyBeforeFinalNativeController() {
+        final Minecraft189HitSelectModule select =
+                new Minecraft189HitSelectModule();
+        select.onEnable();
+        try {
+            // Source intake happens before any later original World getter.
+            final Minecraft189HitSelectPolicyAdmission intake = policy(
+                    select.active(), select.nativeOwnerEpoch(),
+                    select.requireObservedRecoverySetting().get(),
+                    select.minTargetHurtTicksSetting().get(),
+                    select.maxTargetHurtTicksSetting().get());
+
+            // A callback changes HitSelect's live recovery setting; taking
+            // a *new* snapshot at the end would incorrectly adopt it.
+            select.requireObservedRecoverySetting().set(Boolean.TRUE);
+            final Minecraft189HitSelectPolicyAdmission late = policy(
+                    select.active(), select.nativeOwnerEpoch(),
+                    select.requireObservedRecoverySetting().get(),
+                    select.minTargetHurtTicksSetting().get(),
+                    select.maxTargetHurtTicksSetting().get());
+            assertTrue(late.matches(late), "late snapshot alone misses reentry");
+            assertFalse(intake.matches(late),
+                    "only source-intake policy may authorize this click");
+
+            // A second original callback changes the hurt window.
+            select.requireObservedRecoverySetting().set(Boolean.FALSE);
+            select.minTargetHurtTicksSetting().set(1);
+            assertFalse(intake.matches(policy(
+                    select.active(), select.nativeOwnerEpoch(),
+                    select.requireObservedRecoverySetting().get(),
+                    select.minTargetHurtTicksSetting().get(),
+                    select.maxTargetHurtTicksSetting().get())));
+            select.minTargetHurtTicksSetting().set(0);
+
+            // OFF->ON with the same visible settings is still a different
+            // activation epoch and cannot borrow any earlier attack.
+            select.onDisable();
+            select.onEnable();
+            assertFalse(intake.matches(policy(
+                    select.active(), select.nativeOwnerEpoch(),
+                    select.requireObservedRecoverySetting().get(),
+                    select.minTargetHurtTicksSetting().get(),
+                    select.maxTargetHurtTicksSetting().get())));
+        } finally {
+            select.onDisable();
+        }
+    }
+
+    @Test
     void originalGuiOrWorldSuspensionRevokesRecoveryAdmission() {
         final Minecraft189HitSelectModule module =
                 new Minecraft189HitSelectModule();
