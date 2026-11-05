@@ -708,7 +708,7 @@ final class ClickGuiInputControllerTest {
             assertTrue(page.capturesPointerDrag());
             assertTrue(input.key(new UiKeyEvent(
                     new UiKey("legacy-key-33"), UiKeyAction.PRESS,
-                    '\0', true, false, false)));
+                    '\0', false, true, false)));
             assertFalse(page.capturesPointerDrag());
             assertTrue(input.key(character('q')));
             assertEquals("q", model.snapshot().searchQuery());
