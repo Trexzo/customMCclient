@@ -243,6 +243,9 @@ public final class ClickGuiInputController
         }
 
         if (focusManager.dispatchKey(event)) {
+            // Search editor can alter the visible Settings/Modules rows.
+            // A captured scrub must not keep writing a now-hidden row.
+            reconcilePointerCapture();
             return true;
         }
 
@@ -252,6 +255,7 @@ public final class ClickGuiInputController
                 && event.control() && !event.alt()
                 && focusManager.focusedId() == null
                 && "legacy-key-33".equals(event.key().id())) {
+            cancelCapturedPointer();
             return focusManager.requestFocus(SEARCH_FOCUS_ID);
         }
 
