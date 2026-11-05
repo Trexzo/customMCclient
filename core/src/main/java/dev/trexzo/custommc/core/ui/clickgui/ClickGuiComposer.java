@@ -139,10 +139,16 @@ public final class ClickGuiComposer {
                                 UiColorRole.SURFACE_RAISED)));
 
         final boolean hasQuery = !snapshot.searchQuery().isEmpty();
-        final String searchText =
-                hasQuery
-                        ? snapshot.searchQuery()
+        // The same search field filters global Settings when that page is
+        // selected. Preserve the established Modules placeholder and all
+        // search geometry/clear affordance semantics on other pages.
+        final String placeholder =
+                ClickGuiRuntime.SETTINGS_PAGE_ID.equals(
+                        snapshot.selectedPageId())
+                        ? "Search settings"
                         : "Search modules";
+        final String searchText =
+                hasQuery ? snapshot.searchQuery() : placeholder;
         // Never let long search input overdraw the navigation or clear affordance.
         final float clearSpace = hasQuery ? 34.0F : 16.0F;
         commands.add(
