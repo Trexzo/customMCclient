@@ -162,4 +162,51 @@ final class ClickGuiComposerTest {
         }
     }
 
+
+    @Test
+    void emptySearchPlaceholderNamesTheActualSettingsFilter() {
+        final ClickGuiComposer composer = new ClickGuiComposer();
+        final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+        final ClickGuiPage modules = new ClickGuiPage(
+                "modules", "Modules", 0);
+        final ClickGuiPage settings = new ClickGuiPage(
+                "settings", "Settings", 10);
+        final List<ClickGuiPage> pages = Arrays.asList(modules, settings);
+
+        final List<UiDrawCommand> modulesCommands = composer.compose(
+                new ClickGuiSnapshot(true, "modules", "", pages),
+                viewport, UiThemes.darkDefault());
+        assertTrue(hasClippedText(modulesCommands, "Search modules"));
+        assertFalse(hasClippedText(modulesCommands, "Search settings"));
+
+        final List<UiDrawCommand> settingsCommands = composer.compose(
+                new ClickGuiSnapshot(true, "settings", "", pages),
+                viewport, UiThemes.darkDefault());
+        assertTrue(hasClippedText(settingsCommands, "Search settings"));
+        assertFalse(hasClippedText(settingsCommands, "Search modules"));
+
+        // Existing typed text takes priority over either placeholder.
+        final List<UiDrawCommand> typedCommands = composer.compose(
+                new ClickGuiSnapshot(true, "settings", "velocity", pages),
+                viewport, UiThemes.darkDefault());
+        assertTrue(hasClippedText(typedCommands, "velocity"));
+        assertFalse(hasClippedText(typedCommands, "Search settings"));
+    }
+
+    private static boolean hasClippedText(final List<UiDrawCommand> commands,
+            final String expected) {
+        for (UiDrawCommand command : commands) {
+            if (!(command instanceof UiClipCommand)) continue;
+            for (UiDrawCommand child
+                    : ((UiClipCommand) command).commands()) {
+                if (child instanceof UiTextCommand
+                        && expected.equals(
+                                ((UiTextCommand) child).text())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
 }
