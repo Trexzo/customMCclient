@@ -706,6 +706,9 @@ final class ClickGuiInputControllerTest {
             // held numeric scrub must not survive that focus transition.
             assertTrue(input.pointer(press(x, y), viewport));
             assertTrue(page.capturesPointerDrag());
+            // The new press is itself a legitimate numeric scrub seek.
+            // Capture its result; Ctrl+F and subsequent MOVE must preserve it.
+            final Integer beforeSearchFocus = opacity.get();
             assertTrue(input.key(new UiKeyEvent(
                     new UiKey("legacy-key-33"), UiKeyAction.PRESS,
                     '\0', false, true, false)));
@@ -713,7 +716,7 @@ final class ClickGuiInputControllerTest {
             assertTrue(input.key(character('q')));
             assertEquals("q", model.snapshot().searchQuery());
             assertFalse(input.pointer(outsideMove, viewport));
-            assertEquals(Integer.valueOf(100), opacity.get());
+            assertEquals(beforeSearchFocus, opacity.get());
         }
     }
 
