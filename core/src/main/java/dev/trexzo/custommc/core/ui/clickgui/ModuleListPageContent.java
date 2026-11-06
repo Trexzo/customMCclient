@@ -447,6 +447,10 @@ public final class ModuleListPageContent
 
     private List<Entry> filteredModules(
             final ClickGuiSnapshot snapshot) {
+        if (scroll.resetForSearchChange(snapshot.searchQuery())) {
+            // Source rows may have moved or disappeared under a held rail.
+            railDrag.cancel();
+        }
         final String query =
                 snapshot.searchQuery()
                         .trim()
