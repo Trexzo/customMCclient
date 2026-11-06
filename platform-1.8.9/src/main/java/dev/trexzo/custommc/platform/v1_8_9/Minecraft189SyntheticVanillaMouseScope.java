@@ -44,9 +44,18 @@ final class Minecraft189SyntheticVanillaMouseScope {
         public void close() {
             if (closed) return;
             closed = true;
-            if (CURRENT.get() != this) {
-                // Invalid nesting must not restore older controller credit.
-                CURRENT.remove();
+            final Scope current = CURRENT.get();
+            if (current != this) {
+                // Closing an ancestor out of order revokes its live nested
+                // frames. A delayed close from an already-revoked chain
+                // must NOT cancel a later, independent vanilla click frame.
+                for (Scope cursor = current; cursor != null;
+                        cursor = cursor.prior) {
+                    if (cursor == this) {
+                        CURRENT.remove();
+                        break;
+                    }
+                }
                 return;
             }
             if (prior == null || prior.closed) {

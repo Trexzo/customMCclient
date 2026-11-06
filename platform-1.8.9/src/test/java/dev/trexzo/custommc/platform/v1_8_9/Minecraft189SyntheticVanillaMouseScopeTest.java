@@ -72,6 +72,29 @@ final class Minecraft189SyntheticVanillaMouseScopeTest {
     }
 
     @Test
+    void lateCloseOfRevokedNestedFramePreservesNewIndependentScope() {
+        final Minecraft189SyntheticVanillaMouseScope.Scope oldOuter =
+                Minecraft189SyntheticVanillaMouseScope.enter();
+        final Minecraft189SyntheticVanillaMouseScope.Scope oldInner =
+                Minecraft189SyntheticVanillaMouseScope.enter();
+        oldOuter.close();
+        assertFalse(Minecraft189SyntheticVanillaMouseScope.active(),
+                "misnested old chain must remain fail-closed");
+        try (Minecraft189SyntheticVanillaMouseScope.Scope fresh =
+                Minecraft189SyntheticVanillaMouseScope.enter()) {
+            assertTrue(fresh.stillCurrent());
+            oldInner.close();
+            assertTrue(fresh.stillCurrent(),
+                    "a late stale close cannot revoke a new independent click");
+            assertTrue(Minecraft189SyntheticVanillaMouseScope.active());
+            oldInner.close();
+            assertTrue(fresh.stillCurrent(),
+                    "repeat close must not revoke an unrelated frame");
+        }
+        assertFalse(Minecraft189SyntheticVanillaMouseScope.active());
+    }
+
+    @Test
     void originalControllerScopeDoesNotCrossThreads() throws Exception {
         assertFalse(Minecraft189SyntheticVanillaMouseScope.active());
         final java.util.concurrent.atomic.AtomicReference<Throwable> failure =

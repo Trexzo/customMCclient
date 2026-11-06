@@ -337,7 +337,9 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
             "static Scope enter()",
             "CURRENT.set(scope);",
             "implements AutoCloseable",
-            "CURRENT.get() != this",
+            "if (current != this)",
+            "for (Scope cursor = current; cursor != null;",
+            "if (cursor == this)",
             "CURRENT.remove();",
             "CURRENT.set(prior);",
         ):
