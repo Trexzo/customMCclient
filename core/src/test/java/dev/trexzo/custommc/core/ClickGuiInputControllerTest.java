@@ -762,6 +762,48 @@ final class ClickGuiInputControllerTest {
         }
     }
 
+
+    @Test
+    void plainSearchBackspaceRemovesEntireSurrogatePair() {
+        final ClickGuiModel model = model();
+        final UiFocusManager focus = new UiFocusManager();
+        final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+        final ClickGuiLayout layout =
+                new ClickGuiLayoutEngine().layout(viewport);
+        final String rocket = new String(Character.toChars(0x1F680));
+        try (ClickGuiInputController input =
+                     new ClickGuiInputController(model, focus)) {
+            assertTrue(input.pointer(press(
+                    layout.search().x() + 5.0F,
+                    layout.search().y() + 5.0F), viewport));
+            assertTrue(input.key(character('a')));
+            assertTrue(input.key(character('i')));
+            assertTrue(input.key(character('m')));
+            assertTrue(input.key(character(' ')));
+
+            // Minecraft 1.8.9 supplies UTF-16 char events. A
+            // supplementary Unicode symbol arrives in two code units.
+            assertTrue(input.key(character(rocket.charAt(0))));
+            assertTrue(input.key(character(rocket.charAt(1))));
+            assertEquals("aim " + rocket, model.snapshot().searchQuery());
+
+            assertTrue(input.key(key(UiKeys.BACKSPACE)));
+            assertEquals("aim ", model.snapshot().searchQuery());
+            assertTrue(input.key(key(UiKeys.BACKSPACE)));
+            assertEquals("aim", model.snapshot().searchQuery());
+
+            // Existing S57 word deletion still works after an emoji
+            // and still owns the focused search rather than global nav.
+            assertTrue(input.key(new UiKeyEvent(
+                    UiKeys.BACKSPACE, UiKeyAction.PRESS, '\0',
+                    false, true, false)));
+            assertEquals("", model.snapshot().searchQuery());
+            assertEquals(ClickGuiInputController.SEARCH_FOCUS_ID,
+                    focus.focusedId());
+            assertTrue(model.snapshot().open());
+        }
+    }
+
     private static ClickGuiModel model() {
         final ClickGuiModel model =
                 new ClickGuiModel();
