@@ -261,6 +261,10 @@ public final class SettingListPageContent
 
     private List<Entry> entries(
             final ClickGuiSnapshot snapshot) {
+        if (scroll.resetForSearchChange(snapshot.searchQuery())) {
+            railDrag.cancel();
+            numericScrub.cancel();
+        }
         final String query =
                 snapshot.searchQuery()
                         .trim()

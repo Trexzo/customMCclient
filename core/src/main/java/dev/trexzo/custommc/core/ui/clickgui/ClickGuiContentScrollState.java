@@ -4,6 +4,22 @@ final class ClickGuiContentScrollState {
     static final float SCROLL_STEP = 28.0F;
 
     private float offset;
+    private String lastSearchQuery;
+
+    /**
+     * A changed filter has a different visible row projection: start at
+     * its first result rather than reusing an older scroll position.
+     * A no-op query assignment preserves the user's scroll progress.
+     */
+    synchronized boolean resetForSearchChange(final String query) {
+        java.util.Objects.requireNonNull(query, "query");
+        if (query.equals(lastSearchQuery)) {
+            return false;
+        }
+        lastSearchQuery = query;
+        offset = 0.0F;
+        return true;
+    }
 
     synchronized float offset(
             final float contentHeight,

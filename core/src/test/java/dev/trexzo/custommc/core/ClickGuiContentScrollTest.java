@@ -4,6 +4,12 @@ import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleState;
+import dev.trexzo.custommc.core.setting.Setting;
+import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
+import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.setting.SettingValueKind;
+import dev.trexzo.custommc.core.ui.clickgui.SettingListPageContent;
 import dev.trexzo.custommc.core.ui.UiClipCommand;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFocusManager;
@@ -179,6 +185,118 @@ final class ClickGuiContentScrollTest {
         assertEquals(
                 ModuleState.DISABLED,
                 controller.stateOf("module-00"));
+    }
+
+
+    @Test
+    void moduleSearchStartsAtTopAndNoopQueryKeepsWheelOffset() {
+        final ModuleRegistry modules = populatedModules(20);
+        final ModuleController controller = new ModuleController(modules);
+        final ClickGuiContentRegistry contents =
+                new ClickGuiContentRegistry();
+        contents.register("modules",
+                new ModuleListPageContent(modules, controller));
+        final ClickGuiModel model = new ClickGuiModel();
+        model.register(new ClickGuiPage("modules", "Modules", 0));
+        model.open();
+        final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+        final ClickGuiLayout layout =
+                new ClickGuiLayoutEngine().layout(viewport);
+        final ClickGuiComposer composer = new ClickGuiComposer(contents);
+        final float originalY = textY(composer.compose(model.snapshot(),
+                viewport, UiThemes.darkDefault()), "module-00");
+        final float wheelX = layout.content().x() + 8.0F;
+        final float wheelY = layout.content().y() + 8.0F;
+
+        try (ClickGuiInputController input = new ClickGuiInputController(
+                model, contents, new UiFocusManager())) {
+            assertTrue(input.scroll(new UiScrollEvent(
+                    wheelX, wheelY, -2.0F), viewport));
+            assertEquals(originalY - 56.0F, textY(composer.compose(
+                    model.snapshot(), viewport, UiThemes.darkDefault()),
+                    "module-00"));
+
+            // Search still matches all 20 modules. Reset happens because
+            // the query changed, not because the list became shorter.
+            model.setSearchQuery("module-");
+            assertEquals(originalY, textY(composer.compose(
+                    model.snapshot(), viewport, UiThemes.darkDefault()),
+                    "module-00"));
+            assertTrue(input.scroll(new UiScrollEvent(
+                    wheelX, wheelY, -1.0F), viewport));
+            model.setSearchQuery("module-");
+            assertEquals(originalY - 28.0F, textY(composer.compose(
+                    model.snapshot(), viewport, UiThemes.darkDefault()),
+                    "module-00"));
+            model.setSearchQuery("");
+            assertEquals(originalY, textY(composer.compose(
+                    model.snapshot(), viewport, UiThemes.darkDefault()),
+                    "module-00"));
+
+            // Source pointer hit-testing must use the same reset offset.
+            assertTrue(input.pointer(new UiPointerEvent(
+                    layout.content().x() + 30.0F,
+                    layout.content().y() + 60.0F,
+                    UiPointerButton.LEFT, UiPointerAction.PRESS), viewport));
+            assertEquals(ModuleState.ENABLED,
+                    controller.stateOf("module-00"));
+            assertEquals(ModuleState.DISABLED,
+                    controller.stateOf("module-01"));
+        }
+    }
+
+    @Test
+    void globalSettingsSearchResetsRealRowGeometryOnlyOnChange() {
+        final SettingRegistry settings = new SettingRegistry();
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        for (int i = 0; i < 20; i++) {
+            final String id = String.format("visual.setting-%02d", i);
+            settings.register(new Setting<Boolean>(
+                    id, Boolean.FALSE, value -> value != null));
+            presentations.register(new SettingDescriptor(
+                    id, String.format("Setting %02d", i),
+                    SettingValueKind.BOOLEAN, i));
+        }
+        final ClickGuiContentRegistry contents =
+                new ClickGuiContentRegistry();
+        contents.register("settings", new SettingListPageContent(
+                settings, presentations));
+        final ClickGuiModel model = new ClickGuiModel();
+        model.register(new ClickGuiPage("settings", "Settings", 0));
+        model.open();
+        final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+        final ClickGuiLayout layout =
+                new ClickGuiLayoutEngine().layout(viewport);
+        final ClickGuiComposer composer = new ClickGuiComposer(contents);
+        final float originalY = textY(composer.compose(model.snapshot(),
+                viewport, UiThemes.darkDefault()), "Setting 00");
+        final float wheelX = layout.content().x() + 8.0F;
+        final float wheelY = layout.content().y() + 8.0F;
+
+        try (ClickGuiInputController input = new ClickGuiInputController(
+                model, contents, new UiFocusManager())) {
+            assertTrue(input.scroll(new UiScrollEvent(
+                    wheelX, wheelY, -2.0F), viewport));
+            assertEquals(originalY - 56.0F, textY(composer.compose(
+                    model.snapshot(), viewport, UiThemes.darkDefault()),
+                    "Setting 00"));
+            // All settings still match, but a new query starts at row zero.
+            model.setSearchQuery("visual.");
+            assertEquals(originalY, textY(composer.compose(
+                    model.snapshot(), viewport, UiThemes.darkDefault()),
+                    "Setting 00"));
+            assertTrue(input.scroll(new UiScrollEvent(
+                    wheelX, wheelY, -1.0F), viewport));
+            model.setSearchQuery("visual.");
+            assertEquals(originalY - 28.0F, textY(composer.compose(
+                    model.snapshot(), viewport, UiThemes.darkDefault()),
+                    "Setting 00"));
+            model.setSearchQuery("");
+            assertEquals(originalY, textY(composer.compose(
+                    model.snapshot(), viewport, UiThemes.darkDefault()),
+                    "Setting 00"));
+        }
     }
 
     private static ModuleRegistry populatedModules(
