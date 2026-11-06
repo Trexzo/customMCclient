@@ -486,7 +486,8 @@ public final class ClickGuiInputController
     /**
      * Search has a single end-of-string caret. Ctrl+Backspace deletes
      * the last complete token, including any spaces after it. Plain
-     * Backspace still removes exactly one UTF-16 code unit as before.
+     * Backspace removes a whole Unicode code point, never leaving half
+     * of a valid UTF-16 surrogate pair in the search field.
      */
     private static String withoutTrailingWord(final String query) {
         int cut = query.length();
@@ -531,7 +532,9 @@ public final class ClickGuiInputController
                 if (!query.isEmpty()) {
                     final String next = event.control() && !event.alt()
                             ? withoutTrailingWord(query)
-                            : query.substring(0, query.length() - 1);
+                            : query.substring(0,
+                                    query.offsetByCodePoints(
+                                            query.length(), -1));
                     model.setSearchQuery(next);
                 }
                 return true;
