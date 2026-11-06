@@ -483,6 +483,22 @@ public final class ClickGuiInputController
         return null;
     }
 
+    /**
+     * Search has a single end-of-string caret. Ctrl+Backspace deletes
+     * the last complete token, including any spaces after it. Plain
+     * Backspace still removes exactly one UTF-16 code unit as before.
+     */
+    private static String withoutTrailingWord(final String query) {
+        int cut = query.length();
+        while (cut > 0 && Character.isWhitespace(query.charAt(cut - 1))) {
+            cut--;
+        }
+        while (cut > 0 && !Character.isWhitespace(query.charAt(cut - 1))) {
+            cut--;
+        }
+        return query.substring(0, cut);
+    }
+
     private final class SearchFocusTarget
             implements UiFocusTarget {
         @Override
@@ -513,10 +529,10 @@ public final class ClickGuiInputController
                 final String query =
                         model.snapshot().searchQuery();
                 if (!query.isEmpty()) {
-                    model.setSearchQuery(
-                            query.substring(
-                                    0,
-                                    query.length() - 1));
+                    final String next = event.control() && !event.alt()
+                            ? withoutTrailingWord(query)
+                            : query.substring(0, query.length() - 1);
+                    model.setSearchQuery(next);
                 }
                 return true;
             }

@@ -720,6 +720,48 @@ final class ClickGuiInputControllerTest {
         }
     }
 
+
+    @Test
+    void searchCtrlBackspaceDeletesWordsAndKeepsSearchFocus() {
+        final ClickGuiModel model = model();
+        final UiFocusManager focus = new UiFocusManager();
+        final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+        final ClickGuiLayout layout =
+                new ClickGuiLayoutEngine().layout(viewport);
+        try (ClickGuiInputController input =
+                     new ClickGuiInputController(model, focus)) {
+            assertTrue(input.pointer(press(
+                    layout.search().x() + 4.0F,
+                    layout.search().y() + 4.0F), viewport));
+            assertEquals(ClickGuiInputController.SEARCH_FOCUS_ID,
+                    focus.focusedId());
+            model.setSearchQuery("reach velocity  ");
+            final UiKeyEvent ctrlBackspace = new UiKeyEvent(
+                    UiKeys.BACKSPACE, UiKeyAction.PRESS, '\0',
+                    false, true, false);
+            assertTrue(input.key(ctrlBackspace));
+            assertEquals("reach ", model.snapshot().searchQuery());
+            assertTrue(input.key(ctrlBackspace));
+            assertEquals("", model.snapshot().searchQuery());
+            assertTrue(input.key(ctrlBackspace));
+            assertEquals("", model.snapshot().searchQuery());
+
+            model.setSearchQuery("click assist");
+            assertTrue(input.key(key(UiKeys.BACKSPACE)));
+            assertEquals("click assis", model.snapshot().searchQuery());
+            // Ctrl+Alt is not treated as a destructive word shortcut.
+            assertTrue(input.key(new UiKeyEvent(
+                    UiKeys.BACKSPACE, UiKeyAction.PRESS, '\0',
+                    false, true, true)));
+            assertEquals("click assi", model.snapshot().searchQuery());
+
+            assertEquals(ClickGuiInputController.SEARCH_FOCUS_ID,
+                    focus.focusedId());
+            assertEquals("combat", model.snapshot().selectedPageId());
+            assertTrue(model.snapshot().open());
+        }
+    }
+
     private static ClickGuiModel model() {
         final ClickGuiModel model =
                 new ClickGuiModel();
